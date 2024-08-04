@@ -1,11 +1,7 @@
 // ignore_for_file: prefer_is_empty, prefer_final_fields, avoid_print, avoid_function_literals_in_foreach_calls, prefer_interpolation_to_compose_strings
-
-import 'dart:async';
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
-import 'package:usb_serial/transaction.dart';
-import 'package:usb_serial/usb_serial.dart';
+import 'dart:typed_data';
+import 'services/uart_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -20,7 +16,6 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'UART TEST APP',
       theme: ThemeData(
-        
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
@@ -38,165 +33,146 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-
-
 class _MyHomePageState extends State<MyHomePage> {
-
-  UsbPort? _port;
-  String _status = "Idle";
-  List<Widget> _ports = [];
-  List<Widget> _serialData = [];
-
-  StreamSubscription<String>? _subscription;
-  Transaction<String>? _transaction;
-  UsbDevice? _device;
-
-  TextEditingController _textController = TextEditingController();
-
-  Future<bool> _connectTo(device) async {
-    _serialData.clear();
-
-    if (_subscription != null) {
-      _subscription!.cancel();
-      _subscription = null;
-    }
-
-    if (_transaction != null) {
-      _transaction!.dispose();
-      _transaction = null;
-    }
-
-    if (_port != null) {
-      _port!.close();
-      _port = null;
-    }
-
-    if (device == null) {
-      _device = null;
-      setState(() {
-        _status = "Disconnected";
-      });
-      return true;
-    }
-
-    _port = await device.create();
-    if (await (_port!.open()) != true) {
-      setState(() {
-        _status = "Failed to open port";
-      });
-      return false;
-    }
-    _device = device;
-
-    await _port!.setDTR(true);
-    await _port!.setRTS(true);
-    await _port!.setPortParameters(115200, UsbPort.DATABITS_8, UsbPort.STOPBITS_1, UsbPort.PARITY_NONE);
-
-    _transaction = Transaction.stringTerminated(_port!.inputStream as Stream<Uint8List>, Uint8List.fromList([13, 10]));
-
-    _subscription = _transaction!.stream.listen((String line) {
-      setState(() {
-        _serialData.add(Text(line));
-        if (_serialData.length > 20) {
-          _serialData.removeAt(0);
-        }
-      });
-    });
-
-    setState(() {
-      _status = "Connected";
-    });
-    return true;
-  }
-
-  void _getPorts() async {
-    _ports = [];
-    List<UsbDevice> devices = await UsbSerial.listDevices();
-    if (!devices.contains(_device)) {
-      _connectTo(null);
-    }
-    print(devices);
-
-    devices.forEach((device) {
-      _ports.add(ListTile(
-          leading: const Icon(Icons.usb),
-          title: Text(device.productName!),
-          subtitle: Text(device.manufacturerName!),
-          trailing: ElevatedButton(
-            child: Text(_device == device ? "Disconnect" : "Connect"),
-            onPressed: () {
-              _connectTo(_device == device ? null : device).then((res) {
-                _getPorts();
-              });
-            },
-          )));
-    });
-
-    setState(() {
-      print(_ports);
-    });
-  }
+  late UartService _uartService;
+  List<String> _receivedData = [];
+  int internalRCounterValue = 0; // Initial internal R/Counter value
+  final int internalRCounterModValue = 10001; // Modulo value
+  final Uint8List uartData = Uint8List.fromList([
+    0x7E,
+    0x0D,
+    0x18,
+    0xEF,
+    0x26,
+    0x23,
+    0x08,
+    0x03,
+    0x22,
+    0x20,
+    0x24,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0xAA,
+    0x7F
+  ]);
 
   @override
   void initState() {
     super.initState();
+    _uartService = UartService();
+    _openPortAndListen();
+  }
 
-    UsbSerial.usbEventStream!.listen((UsbEvent event) {
-      _getPorts();
-    });
+  Future<void> _openPortAndListen() async {
+    handleBinaryData(uartData);
+    print("{$uartData}");
 
-    _getPorts();
+    // bool result = await _uartService
+    //     .open('/dev/ttymxc1'); // Replace with your actual port name
+    // if (result) {
+    //   _uartService.inputStream.listen((data) {
+    //     handleBinaryData(uartData);
+
+    //   });
+    // } else {
+    //   print('Failed to open port');
+    // }
   }
 
   @override
   void dispose() {
+    _uartService.close();
     super.dispose();
-    _connectTo(null);
   }
- 
+
+  String byteDataToHexString(ByteData byteData) {
+  List<String> hexStrings = [];
+  for (int i = 0; i < byteData.lengthInBytes; i++) {
+    hexStrings.add('0x${byteData.getUint8(i).toRadixString(16).toUpperCase().padLeft(2, '0')}');
+  }
+  return hexStrings.join(' ');
+}
+
+  void handleBinaryData(Uint8List data) {
+    int offset = 0;
+    const int packetSize = 17;
+
+    while (offset + packetSize <= data.length) {
+      // Extract the packet
+      int startOfPacket = data[offset];
+      ByteData canId = ByteData.sublistView(data, 2, 6);
+      String hexString = byteDataToHexString(canId);
+
+      print("this is canId {$hexString}");
+      // int length = data[offset + 1];
+      // int canId = ((data[offset + 2] << 24) |
+      //              (data[offset + 3] << 16) |
+      //              (data[offset + 4] << 8) |
+      //              data[offset + 5]);
+      // int dlc = data[offset + 6];
+      Uint8List payload = data.sublist(offset + 7, offset + 15);
+      print("this is payload CAN DATA {$payload}");
+      // int filler = data[offset + 15];
+      int endOfPacket = data[offset + 16];
+
+      if (startOfPacket == 0x7E && endOfPacket == 0x7F) {
+        int receivedRCounterValue = (payload[0] << 24) |
+            (payload[1] << 16) |
+            (payload[2] << 8) |
+            payload[3];
+
+        print("This is receivedRCounterValue ->{$receivedRCounterValue}");
+
+        setState(() {
+          if (receivedRCounterValue == internalRCounterValue) {
+            // Increase internal R/Counter value by 1
+            internalRCounterValue =
+                (internalRCounterValue + 1) % internalRCounterModValue;
+            _receivedData.add(
+                'Success: R/Counter value matches. Updated R/Counter to $internalRCounterValue');
+          } else {
+            // Set internal R/Counter value to received R/Counter value
+            int sum = internalRCounterValue + 1;
+            print("This is internalRCounterValue ->{$sum}");
+
+            internalRCounterValue =
+                receivedRCounterValue % internalRCounterModValue;
+            _receivedData.add(
+                'Fail: R/Counter value does not match. Updated R/Counter to $internalRCounterValue');
+          }
+        });
+      } else {
+        setState(() {
+          _receivedData.add('Invalid packet');
+        });
+      }
+
+      // Move to the next packet
+      offset += packetSize;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    
     return Scaffold(
       appBar: AppBar(
-        
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        
         title: Text(widget.title),
       ),
-      
-      body: Center(
-          child: Column(children: <Widget>[
-        Text(_ports.length > 0 ? "Available Serial Ports" : "No serial devices available", style: Theme.of(context).textTheme.titleLarge),
-        ..._ports,
-        Text('Status: $_status\n'),
-        Text('info: ${_port.toString()}\n'),
-        ListTile(
-          title: TextField(
-            controller: _textController,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              labelText: 'Text To Send',
-            ),
-          ),
-          trailing: ElevatedButton(
-            onPressed: _port == null
-                ? null
-                : () async {
-                    if (_port == null) {
-                      return;
-                    }
-                    String data = _textController.text + "\r\n";
-                    await _port!.write(Uint8List.fromList(data.codeUnits));
-                    _textController.text = "";
-                  },
-            child: const Text("Send"),
-          ),
-        ),
-        Text("Result Data", style: Theme.of(context).textTheme.titleLarge),
-        ..._serialData,
-      ])),
+      body: ListView.builder(
+        itemCount: _receivedData.length,
+        itemBuilder: (context, index) {
+          if (_receivedData.isEmpty) {
+            return const Text("There is no data");
+          } else {
+            return ListTile(
+              title: Text(_receivedData[index]),
+            );
+          }
+        },
+      ),
     );
   }
 }
