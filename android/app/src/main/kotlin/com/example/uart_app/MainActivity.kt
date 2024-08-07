@@ -35,7 +35,7 @@ class MainActivity : FlutterActivity() {
         val uartPort = File(uartPortPath)
         try {
             if (!uartPort.canRead() || !uartPort.canWrite()) {
-                val suProcess = Runtime.getRuntime().exec("su")
+                val suProcess = Runtime.getRuntime().exec("/system/bin/su")
                 suProcess.outputStream.write("chmod 666 ${uartPort.absolutePath}\nexit\n".toByteArray())
                 suProcess.waitFor()
             }
