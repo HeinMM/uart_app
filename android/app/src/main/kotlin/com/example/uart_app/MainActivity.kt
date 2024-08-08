@@ -1,6 +1,8 @@
 package com.example.uart_app
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
@@ -15,6 +17,8 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.uart_app/uart"
     private lateinit var serialFileInputStream: FileInputStream
     private lateinit var serialFileOutputStream: FileOutputStream
+    private var buffer = ByteArray(0) // Initialize an empty buffer
+    private val handler = Handler(Looper.getMainLooper()) // Handler to post to the main thread
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -46,26 +50,6 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun configureSerialPort() {
-        setBaudRate(460800)
-        Thread {
-            val buffer = ByteArray(1024)
-            while (true) {
-                try {
-                    val bytesRead = serialFileInputStream.read(buffer)
-                    Log.d("CheckData", "type check data: $bytesRead")
-                    if (bytesRead > 0) {
-                        val data = String(buffer, 0, bytesRead)
-                        Log.d("SerialPort", "Read data: $data")
-                    }
-                } catch (e: IOException) {
-                    Log.e("SerialPort", "Error reading from serial port", e)
-                    break
-                }
-            }
-        }.start()
-    }
-
     private fun setBaudRate(baudRate: Int) {
         try {
             val process = Runtime.getRuntime().exec("stty -F /dev/ttymxc1 $baudRate")
@@ -82,40 +66,108 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun parseAndSendData(buffer: ByteArray, length: Int) {
-        val data = buffer.copyOf(length)
-        var index = 0
-
-        while (index < data.size) {
-            if (data.size - index < 16) break // Not enough data for a complete packet
-
-            // Parse packet
-            val startByte = data[index]
-            val lengthByte = data[index + 1]
-            val canId = data.copyOfRange(index + 2, index + 6)
-            val dlc = data[index + 6]
-            val dataBytes = data.copyOfRange(index + 7, index + 15)
-            val fillerByte = data[index + 15]
-            val endByte = data[index + 16]
-
-            // Validate packet
-            if (startByte == 0x7E.toByte() && endByte == 0x7F.toByte() && lengthByte == 13.toByte()) {
-                // Construct a string representation of CAN ID and data for Flutter
-                val canIdStr = canId.joinToString(separator = " ") { "%02X".format(it) }
-                val dataStr = dataBytes.joinToString(separator = " ") { "%02X".format(it) }
-
-                // Send data to Flutter
-                MethodChannel(flutterEngine!!.dartExecutor.binaryMessenger, CHANNEL).invokeMethod(
-                    "onDataReceived",
-                    mapOf(
-                        "canId" to canIdStr,
-                        "data" to dataStr
-                    )
-                )
+    private fun configureSerialPort() {
+        setBaudRate(460800)
+    Thread {
+        val readBuffer = ByteArray(1024 * 10) // Read buffer for incoming data
+        while (true) {
+            try {
+                val bytesRead = serialFileInputStream.read(readBuffer)
+                if (bytesRead > 0) {
+                    // Append the new data to the existing buffer
+                    
+                    synchronized(this) {
+                        buffer = buffer.copyOf(buffer.size + bytesRead)
+                        System.arraycopy(readBuffer, 0, buffer, buffer.size - bytesRead, bytesRead)
+                        
+                        // Process the data
+                        processBuffer()
+                        
+                        // Limit buffer size to prevent excessive growth
+                        if (buffer.size > 1024 * 10) { // Example: limit buffer to 10 KB
+                            buffer = buffer.copyOfRange(buffer.size - 1024 * 2, buffer.size) // Keep the last 2 KB
+                        }
+                    }
+                }
+            } catch (e: IOException) {
+                Log.e("SerialPort", "Error reading from serial port", e)
+                break
             }
-
-            index += 17 // Move to the next packet
         }
+    }.start()
     }
 
+    
+
+    private fun processBuffer() {
+        // Ensure processing and sending data to the UI thread
+        handler.post {
+            val packetLength = 17 // Total fixed length
+            while (buffer.size >= packetLength) {
+                val packetStartIndex = findPacketStart()
+                if (packetStartIndex == -1 || buffer.size - packetStartIndex < packetLength) {
+                    break
+                }
+
+                val packet = buffer.copyOfRange(packetStartIndex, packetStartIndex + packetLength)
+                processPacket(packet)
+
+                // Update the buffer to keep only remaining data
+                buffer = buffer.copyOfRange(packetStartIndex + packetLength, buffer.size)
+            }
+        }
+
+        
+    }
+
+    
+
+    private fun findPacketStart(): Int {
+        // Look for the start of the packet
+        for (i in 0 until buffer.size - 1) {
+            if (buffer[i + 1] == 0x0D.toByte()) {
+                return i
+            }
+        }
+        return -1
+    }
+
+    private fun processPacket(packet: ByteArray) {
+        if (packet.size < 17) return // Ignore incomplete packets
+
+        val lengthByte = packet[1]
+        if (lengthByte != 0x0D.toByte()) return // Invalid packet length
+
+        // Extract CAN ID in big-endian format (4 bytes)
+        // Extract CAN ID in big-endian format (4 bytes)
+    val canIdBytes = packet.copyOfRange(2, 6)
+        val canId = (canIdBytes[0].toInt() shl 24) or
+                (canIdBytes[1].toInt() shl 16) or
+                (canIdBytes[2].toInt() shl 8) or
+                (canIdBytes[3].toInt())
+
+        // Debugging: Log the raw CAN ID bytes and resulting integer value
+    Log.d("SerialPort_Testing", "CAN ID Bytes: ${canIdBytes.joinToString(" ") { "%02X".format(it) }}")
+    Log.d("SerialPort_Testing", "CAN ID Integer: $canId")
+    
+
+        val dlc = packet[6]
+        val dataArray = packet.copyOfRange(7, 15)
+        val fillerByte = packet[15]
+        val endByte = packet[16]
+
+        val canIdStr = "%08X".format(canId) // Format CAN ID as an 8-digit hexadecimal string
+        val dataStr = dataArray.joinToString(separator = " ") { "%02X".format(it) }
+
+        // Ensure this operation is on the main thread
+        handler.post {
+            MethodChannel(flutterEngine!!.dartExecutor.binaryMessenger, CHANNEL).invokeMethod(
+                "onDataReceived",
+                mapOf(
+                    "canId" to canIdStr,
+                    "data" to dataStr
+                )
+            )
+        }
+    }
 }
