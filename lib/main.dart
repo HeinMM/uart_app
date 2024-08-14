@@ -36,61 +36,45 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
 
   static const platform = MethodChannel('com.example.uart_app/uart');
-
-
-  String _data = 'No data';
-  String _error = 'There is Error founded';
+  String data = 'No data';
+  String canData = 'No CAN Data';
 
   @override
   void initState() {
     super.initState();
-    // _openSerialPort();
-    _setUpDataListener();
+    startReadingUart();
   }
 
-  Future<void> _openSerialPort() async {
-    try {
-      final String result = await platform.invokeMethod('openSerialPort');
+  Future<void> startReadingUart() async {
 
-      print(result);
+    try {
+      platform.setMethodCallHandler((call) async {
+        if (call.method == "onData") {
+          setState(() {
+            data = call.arguments['data'].toString();
+
+          });
+        } else if (call.method == "onError") {
+          setState(() {
+            data = "Error: ${call.arguments}";
+            canData = "";
+          });
+        }
+      });
+      await platform.invokeMethod('startReading', {'devicePath': '/dev/ttymxc1', 'baudRate': 460800});
+      print("state done1");
     } on PlatformException catch (e) {
-      print("Failed to open serial port: '${e.message}'.");
+      setState(() {
+        data = "Failed to start UART: ${e.message}";
+        canData = "";
+      });
     }
   }
 
-  void _setUpDataListener() {
-    
-    // platform.setMethodCallHandler((call) async {
-    //   print("onDataReceived is work");
-    //   if (call.method == "onDataReceived") {
-    //
-    //     final data = call.arguments as Map;
-    //     final rawPacket = data['rawPacket'] as String;
-    //
-    //     setState(() {
-    //       _data = call.arguments['rawPacket'];
-    //       print("Unknown method call received: $_data");
-    //     });
-    //   }
-    // });
-
-    platform.setMethodCallHandler((call) async {
-      if (call.method == "onDataReceived") {
-
-        setState(() {
-          _data = call.arguments['rawPacket'] as String;
-        });
-      } else if (call.method == "onErrorPacket") {
-        final data = call.arguments as Map;
-        final error = data['error'] as String;
-        setState(() {
-          _data = 'Error Status: $error\n';
-        });
-      } else {
-        print("Unknown method call received: ${call.method}");
-      }
-    });
-
+  @override
+  void dispose() {
+    platform.invokeMethod('stopReading');
+    super.dispose();
   }
 
 
@@ -102,32 +86,16 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
 
-       body:
-        Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Center(
-          child: ElevatedButton(
-            onPressed: _openSerialPort,
-            child: const Text('Open Serial Port'),
-          ),
-        ),
-        const Text(
-          'Received UART Data:',
-          style: TextStyle(fontSize: 20),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          _data,
-          style: const TextStyle(fontSize: 16),
-          textAlign: TextAlign.center,
-        ),
-      ],
-      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('RAW DATA: $data'),
+            const SizedBox(height: 10),
 
-      // body: const Center(
-      //   child: Text('Waiting for data...'),
-      // ),
+          ],
+        ),
+      ),
       
     );
       

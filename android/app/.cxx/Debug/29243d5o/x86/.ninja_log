@@ -1,0 +1,21 @@
+# ninja log v5
+0	236	7453154977371440	CMakeFiles/native-lib.dir/native-lib.cpp.o	9900ad9c127543cd
+238	295	7453154978148544	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/x86/libnative-lib.so	799321d044f8ab5f
+2	96	7453172028051682	CMakeFiles/native-lib.dir/native-lib.cpp.o	9900ad9c127543cd
+97	158	7453172028816918	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/x86/libnative-lib.so	799321d044f8ab5f
+2	80	7453205579702126	CMakeFiles/native-lib.dir/native-lib.cpp.o	9900ad9c127543cd
+81	143	7453205580470437	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/x86/libnative-lib.so	799321d044f8ab5f
+0	9	0	clean	d2c85ad1949ce46b
+0	7	0	clean	d2c85ad1949ce46b
+0	7	0	clean	d2c85ad1949ce46b
+0	6	0	clean	d2c85ad1949ce46b
+2	118	7453209782645977	CMakeFiles/native-lib.dir/native-lib.cpp.o	9900ad9c127543cd
+118	228	7453209783892772	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/x86/libnative-lib.so	799321d044f8ab5f
+1	88	7453214080066459	CMakeFiles/native-lib.dir/native-lib.cpp.o	9900ad9c127543cd
+88	142	7453214080728452	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/x86/libnative-lib.so	799321d044f8ab5f
+1	83	7453232489081357	CMakeFiles/native-lib.dir/native-lib.cpp.o	9900ad9c127543cd
+84	142	7453232489798981	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/x86/libnative-lib.so	799321d044f8ab5f
+1	91	7453265683133019	CMakeFiles/native-lib.dir/native-lib.cpp.o	9900ad9c127543cd
+91	188	7453265684115315	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/x86/libnative-lib.so	799321d044f8ab5f
+2	176	7453290081727312	CMakeFiles/native-lib.dir/native-lib.cpp.o	9900ad9c127543cd
+176	257	7453290082562724	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/x86/libnative-lib.so	799321d044f8ab5f

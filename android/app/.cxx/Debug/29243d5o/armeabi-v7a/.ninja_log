@@ -1,0 +1,24 @@
+# ninja log v5
+2	227	7453137910944185	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+228	297	7453137911832439	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/armeabi-v7a/libnative-lib.so	eceb033a3a0e2669
+0	8	0	clean	d2c85ad1949ce46b
+3	294	7453154973927482	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+294	348	7453154974691983	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/armeabi-v7a/libnative-lib.so	eceb033a3a0e2669
+1	116	7453172026025673	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+117	185	7453172026826266	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/armeabi-v7a/libnative-lib.so	eceb033a3a0e2669
+2	113	7453205577836059	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+113	188	7453205578687158	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/armeabi-v7a/libnative-lib.so	eceb033a3a0e2669
+0	7	0	clean	d2c85ad1949ce46b
+0	8	0	clean	d2c85ad1949ce46b
+0	5	0	clean	d2c85ad1949ce46b
+0	6	0	clean	d2c85ad1949ce46b
+3	141	7453207805087324	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+141	237	7453207806202961	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/armeabi-v7a/libnative-lib.so	eceb033a3a0e2669
+2	145	7453214077251569	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+146	245	7453214078388039	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/armeabi-v7a/libnative-lib.so	eceb033a3a0e2669
+2	86	7453232487258366	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+86	151	7453232488089842	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/armeabi-v7a/libnative-lib.so	eceb033a3a0e2669
+3	106	7453265681146702	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+106	188	7453265681978450	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/armeabi-v7a/libnative-lib.so	eceb033a3a0e2669
+2	161	7453290078576898	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+161	258	7453290079570121	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/29243d5o/obj/armeabi-v7a/libnative-lib.so	eceb033a3a0e2669

@@ -44,6 +44,14 @@ android {
         enabled = true
     }
 
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+        }
+    }
+        ndkVersion "21.4.7075529" // or your installed NDK version
+
+
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId "com.example.uart_app"
@@ -56,6 +64,16 @@ android {
         multiDexEnabled true
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++11" // Use the C++ standard you require
+            }
+        }
+
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64" // Adjust based on your requirements
+        }
     }
 
     buildTypes {
@@ -63,8 +81,24 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig signingConfigs.debug
+            shrinkResources true
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+
+        debug {
+            // Optionally enable shrinking for debug builds as well
+            minifyEnabled false
+            shrinkResources false
+        }
+
+    }
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt" // Path to your CMakeLists.txt
         }
     }
+
 }
 
 flutter {
@@ -72,17 +106,8 @@ flutter {
 }
 
 dependencies {
-    implementation 'com.github.felHR85:UsbSerial:6.0.0'
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation 'androidx.core:core-ktx:1.8.0'
-    implementation 'androidx.appcompat:appcompat:1.5.1'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation 'com.google.android.material:material:1.8.0'
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.0'
-    testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 
     
 }

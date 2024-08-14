@@ -1,0 +1,25 @@
+# ninja log v5
+0	1934	745305660	CMakeFiles/native-lib.dir/native-lib.cpp.o	312c4da2fee83127
+1935	2027	745305660	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/b5v1l5d2/obj/arm64-v8a/libnative-lib.so	3010b79e8521ec37
+0	5	0	clean	f5edc96192a19eb1
+0	6	0	clean	f5edc96192a19eb1
+2	303	745305757	CMakeFiles/native-lib.dir/native-lib.cpp.o	312c4da2fee83127
+303	349	745305757	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/b5v1l5d2/obj/arm64-v8a/libnative-lib.so	3010b79e8521ec37
+0	6	0	clean	f5edc96192a19eb1
+0	6	0	clean	f5edc96192a19eb1
+1	258	745306497	CMakeFiles/native-lib.dir/native-lib.cpp.o	312c4da2fee83127
+258	304	745306498	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/b5v1l5d2/obj/arm64-v8a/libnative-lib.so	3010b79e8521ec37
+1	7	0	clean	f5edc96192a19eb1
+0	9	0	clean	f5edc96192a19eb1
+1	258	745306568	CMakeFiles/native-lib.dir/native-lib.cpp.o	312c4da2fee83127
+258	313	745306568	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/b5v1l5d2/obj/arm64-v8a/libnative-lib.so	3010b79e8521ec37
+0	6	0	clean	f5edc96192a19eb1
+0	7	0	clean	f5edc96192a19eb1
+3	256	745306739	CMakeFiles/native-lib.dir/native-lib.cpp.o	312c4da2fee83127
+256	304	745306739	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/b5v1l5d2/obj/arm64-v8a/libnative-lib.so	3010b79e8521ec37
+0	8	0	clean	f5edc96192a19eb1
+0	7	0	clean	f5edc96192a19eb1
+0	6	0	clean	f5edc96192a19eb1
+0	6	0	clean	f5edc96192a19eb1
+2	325	745307018	CMakeFiles/native-lib.dir/native-lib.cpp.o	312c4da2fee83127
+326	372	745307018	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/b5v1l5d2/obj/arm64-v8a/libnative-lib.so	3010b79e8521ec37
