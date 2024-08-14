@@ -13,35 +13,50 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 
+
+
+
+
+
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.uart_app/uart"
-    private lateinit var serialFileInputStream: FileInputStream
-    private lateinit var serialFileOutputStream: FileOutputStream
-    private var buffer = ByteArray(0) // Initialize an empty buffer
-    private val handler = Handler(Looper.getMainLooper()) // Handler to post to the main thread
+    private lateinit var serialPort: SerialPort
+    private var buffer = ByteArray(1024) // Initialize an empty buffer
+    private val handler = Handler(Looper.getMainLooper())
+    private var lastProcessedPacket: ByteArray? = null // To store the last processed packet
+    private var packetCounter: Int = 0 // Counter to make each log unique
+
+    private val recentPackets = LinkedHashSet<String>()
+    private val MAX_RECENT_PACKETS = 10 // Adjust as needed for your use case
+
+    private var internalRollingCounter = 0
+    private var errorCount = 0
+    private val MAX_ROLLING_COUNTER = 10000
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             if (call.method == "openSerialPort") {
-                openSerialPort(result)
+                val baudRate =  460800
+                val flags =  0
+                openSerialPort(result, baudRate, flags)
             } else {
                 result.notImplemented()
             }
         }
     }
 
-    private fun openSerialPort(result: MethodChannel.Result) {
+    private fun openSerialPort(result: MethodChannel.Result, baudRate: Int, flags: Int) {
         val serialFile = File("/dev/ttymxc1")
+        val realBaud = baudRate
         if (!serialFile.exists()) {
             result.error("FILE_NOT_FOUND", "Serial port file not found", null)
             return
         }
 
         try {
-            serialFileInputStream = FileInputStream(serialFile)
-            serialFileOutputStream = FileOutputStream(serialFile)
-            configureSerialPort()
+            serialPort = SerialPort(serialFile, baudRate, flags)
+            startReadingSerialPort()
             result.success("Serial port opened successfully")
         } catch (e: SecurityException) {
             result.error("PERMISSION_DENIED", "Permission denied to access the serial port", null)
@@ -50,124 +65,247 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun setBaudRate(baudRate: Int) {
-        try {
-            val process = Runtime.getRuntime().exec("stty -F /dev/ttymxc1 $baudRate")
-            process.waitFor()
-            if (process.exitValue() != 0) {
-                Log.e("SerialPort", "Failed to set baud rate")
-            } else {
-                Log.d("SerialPort", "Baud rate set to $baudRate")
-            }
-        } catch (e: IOException) {
-            Log.e("SerialPort", "Error setting baud rate", e)
-        } catch (e: InterruptedException) {
-            Log.e("SerialPort", "Error setting baud rate", e)
-        }
-    }
+    private fun processBuffer() {// End byte
+        val packetLength = 17 // Packet length
 
-    private fun configureSerialPort() {
-        setBaudRate(460800)
-    Thread {
-        val readBuffer = ByteArray(1024 * 10) // Read buffer for incoming data
-        while (true) {
-            try {
-                val bytesRead = serialFileInputStream.read(readBuffer)
-                if (bytesRead > 0) {
-                    // Append the new data to the existing buffer
-                    
-                    synchronized(this) {
-                        buffer = buffer.copyOf(buffer.size + bytesRead)
-                        System.arraycopy(readBuffer, 0, buffer, buffer.size - bytesRead, bytesRead)
-                        
-                        // Process the data
-                        processBuffer()
-                        
-                        // Limit buffer size to prevent excessive growth
-                        if (buffer.size > 1024 * 10) { // Example: limit buffer to 10 KB
-                            buffer = buffer.copyOfRange(buffer.size - 1024 * 2, buffer.size) // Keep the last 2 KB
-                        }
-                    }
-                }
-            } catch (e: IOException) {
-                Log.e("SerialPort", "Error reading from serial port", e)
-                break
-            }
-        }
-    }.start()
-    }
-
-    
-
-    private fun processBuffer() {
-        // Ensure processing and sending data to the UI thread
         handler.post {
-            val packetLength = 17 // Total fixed length
             while (buffer.size >= packetLength) {
                 val packetStartIndex = findPacketStart()
                 if (packetStartIndex == -1 || buffer.size - packetStartIndex < packetLength) {
                     break
                 }
 
+                // Extract the packet
                 val packet = buffer.copyOfRange(packetStartIndex, packetStartIndex + packetLength)
-                processPacket(packet)
 
-                // Update the buffer to keep only remaining data
+                // Process the packet
+                if (validatePacket(packet)) {
+                    processPacket(packet)
+                }
+
+
+                // Update the buffer to remove the processed packet
                 buffer = buffer.copyOfRange(packetStartIndex + packetLength, buffer.size)
+
+                // Break the loop if buffer size is reduced, avoiding any double processing
+                if (buffer.isEmpty()) {
+                    break
+                }
             }
         }
 
-        
     }
 
-    
+    private fun startReadingSerialPort() {
+//        Thread {
+//            val readBuffer = ByteArray(1024)
+//            while (true) {
+//                try {
+//                    val bytesRead = serialPort.read(readBuffer)
+//
+//                    if (bytesRead > 0) {
+//                        synchronized(this) {
+//                            buffer += readBuffer.copyOfRange(0, bytesRead)
+//                            processBuffer()
+//                        }
+//                    }
+//                } catch (e: IOException) {
+//                    Log.e("SerialPort", "Error reading from serial port", e)
+//                    break
+//                }
+//            }
+//        }.start()
+
+        Thread {
+            val readBuffer = ByteArray(1024)
+            while (true) {
+                try {
+                    val bytesRead = serialPort.read(readBuffer)
+
+                    if (bytesRead > 0) {
+                        // Log the raw bytes read
+//                        val rawBytes = readBuffer.copyOfRange(0, bytesRead).joinToString(" ") { "%02X".format(it) }
+                        //Log.d("SerialPort", "Raw bytes read: $rawBytes")
+
+                        synchronized(this) {
+                            buffer += readBuffer.copyOfRange(0, bytesRead)
+                            processBuffer()
+                        }
+                    }
+                } catch (e: IOException) {
+                    Log.e("SerialPort", "Error reading from serial port", e)
+                    break
+                }
+            }
+        }.start()
+    }
+
+
 
     private fun findPacketStart(): Int {
-        // Look for the start of the packet
-        for (i in 0 until buffer.size - 1) {
-            if (buffer[i + 1] == 0x0D.toByte()) {
+        for (i in buffer.indices) {
+            if (buffer[i] == 0x7E.toByte()) {
                 return i
             }
         }
         return -1
     }
 
+    private fun validatePacket(packet: ByteArray): Boolean {
+        return packet.size == 17 && packet[0] == 0x7E.toByte() && packet[16] == 0x7F.toByte()
+    }
+
+
+
     private fun processPacket(packet: ByteArray) {
-        if (packet.size < 17) return // Ignore incomplete packets
 
-        val lengthByte = packet[1]
-        if (lengthByte != 0x0D.toByte()) return // Invalid packet length
 
-        // Extract CAN ID in big-endian format (4 bytes)
-        // Extract CAN ID in big-endian format (4 bytes)
-    val canIdBytes = packet.copyOfRange(2, 6)
-        val canId = (canIdBytes[0].toInt() shl 24) or
-                (canIdBytes[1].toInt() shl 16) or
-                (canIdBytes[2].toInt() shl 8) or
-                (canIdBytes[3].toInt())
+        // Ignore incomplete packets
+        if (packet.size < 17) return
 
-        // Debugging: Log the raw CAN ID bytes and resulting integer value
-    Log.d("SerialPort_Testing", "CAN ID Bytes: ${canIdBytes.joinToString(" ") { "%02X".format(it) }}")
-    Log.d("SerialPort_Testing", "CAN ID Integer: $canId")
-    
 
-        val dlc = packet[6]
-        val dataArray = packet.copyOfRange(7, 15)
-        val fillerByte = packet[15]
-        val endByte = packet[16]
 
-        val canIdStr = "%08X".format(canId) // Format CAN ID as an 8-digit hexadecimal string
-        val dataStr = dataArray.joinToString(separator = " ") { "%02X".format(it) }
+        // Check if the packet is a duplicate of the last processed packet
+        if (lastProcessedPacket != null && lastProcessedPacket!!.contentEquals(packet)) {
 
-        // Ensure this operation is on the main thread
+            return
+        }
+
+        // Check for sequence progression
+        val currentSequence = packet[7] // Assuming the sequence byte is at index 7
+        val lastSequence = lastProcessedPacket?.get(7)
+
+        if (lastSequence != null && currentSequence == lastSequence) {
+
+            return
+        }
+
+        val rawPacketHex = packet.joinToString(" ") { "%02X".format(it) }
+        Log.d("testing raw", "this is raw data : $rawPacketHex")
+
+        // Update the last processed packet
+        lastProcessedPacket = packet.copyOf()
+
+
+        // Add to recent packets set and maintain size
+        recentPackets.add(rawPacketHex)
+        if (recentPackets.size > MAX_RECENT_PACKETS) {
+            recentPackets.remove(recentPackets.first())
+        }
+
+        // Update the last processed packet
+        lastProcessedPacket = packet.copyOf()
+
+        // Increment the packet counter
+        packetCounter++
+
+        // Extract rolling counter from the packet (assuming DATA 1 is at index 7 and DATA 2 at index 8)
+        val test7 = packet[7].toInt() and 0xFF
+        val test8 = packet[8].toInt() and 0xFF
+//        Log.d("test7", "test7: $test7")
+//        Log.d("test8", "test8: $test8")
+        val receivedCounter = (packet[7].toInt() and 0xFF) shl 8 or (packet[8].toInt() and 0xFF)
+
+        if (receivedCounter == internalRollingCounter) {
+            // Success: Rolling counters match
+            Log.d("RollingCounter", "Success: Received R/Counter matches internal R/Counter.")
+            internalRollingCounter = (internalRollingCounter + 1) % (MAX_ROLLING_COUNTER + 1)
+        } else {
+            // Failure: Rolling counters do not match
+//            Log.d("RollingCounter", "Error: Received R/Counter $receivedCounter does not match internal R/Counter $internalRollingCounter.")
+            internalRollingCounter = (receivedCounter + 1) % (MAX_ROLLING_COUNTER + 1)
+            errorCount++
+        }
+
+
+
+        // Send this data to the Flutter side if needed
         handler.post {
             MethodChannel(flutterEngine!!.dartExecutor.binaryMessenger, CHANNEL).invokeMethod(
                 "onDataReceived",
-                mapOf(
-                    "canId" to canIdStr,
-                    "data" to dataStr
-                )
+                mapOf("rawPacket" to rawPacketHex)
             )
         }
+
+
+    }
+
+    }
+
+
+class SerialPort(private val device: File, private val baudRate: Int, private val flags: Int) {
+    var inputStream: FileInputStream? = null
+        private set
+    var outputStream: FileOutputStream? = null
+        private set
+
+    init {
+        openSerialPort()
+    }
+
+    private fun openSerialPort() {
+        try {
+            inputStream = FileInputStream(device)
+            outputStream = FileOutputStream(device)
+            configurePort()
+        } catch (e: IOException) {
+            Log.e("SerialPort", "Error opening serial port: ${e.message}")
+            throw IOException("Cannot open serial port.")
+        }
+    }
+
+
+
+
+    private fun configurePort() {
+        try {
+            val flagsString = when (flags) {
+                0 -> "" // No additional flags
+                else -> flags.toString() // Replace with appropriate flags
+            }
+
+            val process = Runtime.getRuntime().exec(
+//                arrayOf("/bin/sh", "-c", "stty -F  raw  </dev/ttymxc1 $baudRate" ))
+                "stty -F ${device.absolutePath} $baudRate raw -parenb cs8 -cstopb -ixon ")
+            process.waitFor()
+            if (process.exitValue() != 0) {
+                throw IOException("Failed to configure serial port.")
+            }
+        } catch (e: IOException) {
+            Log.e("SerialPort", "Error configuring serial port: ${e.message}")
+            throw IOException("Cannot configure serial port.")
+        } catch (e: InterruptedException) {
+            Log.e("SerialPort", "Configuration interrupted: ${e.message}")
+            throw IOException("Configuration interrupted.")
+        }
+    }
+
+
+//    private fun flagsToString(flags: Int): String {
+//
+//        return when (flags) {
+//            0 -> ""
+//
+//            else -> throw IllegalArgumentException("Unsupported flags value: $flags")
+//        }
+//    }
+
+    @Throws(IOException::class)
+    fun close() {
+        inputStream?.close()
+        outputStream?.close()
+    }
+
+    fun write(data: ByteArray) {
+        outputStream?.write(data)
+        outputStream?.flush()
+    }
+
+    fun read(buffer: ByteArray): Int {
+        return inputStream?.read(buffer) ?: -1
     }
 }
+
+
+
+

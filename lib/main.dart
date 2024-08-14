@@ -36,20 +36,22 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
 
   static const platform = MethodChannel('com.example.uart_app/uart');
-  
+
 
   String _data = 'No data';
+  String _error = 'There is Error founded';
 
   @override
   void initState() {
     super.initState();
-    _openSerialPort();
+    // _openSerialPort();
     _setUpDataListener();
   }
 
   Future<void> _openSerialPort() async {
     try {
       final String result = await platform.invokeMethod('openSerialPort');
+
       print(result);
     } on PlatformException catch (e) {
       print("Failed to open serial port: '${e.message}'.");
@@ -58,19 +60,37 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _setUpDataListener() {
     
+    // platform.setMethodCallHandler((call) async {
+    //   print("onDataReceived is work");
+    //   if (call.method == "onDataReceived") {
+    //
+    //     final data = call.arguments as Map;
+    //     final rawPacket = data['rawPacket'] as String;
+    //
+    //     setState(() {
+    //       _data = call.arguments['rawPacket'];
+    //       print("Unknown method call received: $_data");
+    //     });
+    //   }
+    // });
+
     platform.setMethodCallHandler((call) async {
       if (call.method == "onDataReceived") {
-        
-        
-        final data = call.arguments as Map;
-        final canId = data['canId'] as String;
-        final dataBytes = data['data'] as String;
 
         setState(() {
-          _data = 'CAN ID: $canId\nData: $dataBytes';
+          _data = call.arguments['rawPacket'] as String;
         });
+      } else if (call.method == "onErrorPacket") {
+        final data = call.arguments as Map;
+        final error = data['error'] as String;
+        setState(() {
+          _data = 'Error Status: $error\n';
+        });
+      } else {
+        print("Unknown method call received: ${call.method}");
       }
     });
+
   }
 
 
@@ -82,7 +102,7 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
 
-       body: 
+       body:
         Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -104,6 +124,10 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ],
       ),
+
+      // body: const Center(
+      //   child: Text('Waiting for data...'),
+      // ),
       
     );
       
