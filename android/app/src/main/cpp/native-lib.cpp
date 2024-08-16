@@ -3,6 +3,9 @@
 #include <unistd.h>
 #include <termios.h>
 #include <cerrno>
+#include <chrono>
+#include <iostream>
+#include <sys/ioctl.h>
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManager_openUART(JNIEnv *env, jobject thiz, jstring devicePath, jint baudRate) {
@@ -16,27 +19,32 @@ Java_com_example_uart_1app_UartManager_openUART(JNIEnv *env, jobject thiz, jstri
     struct termios options;
     tcgetattr(fd, &options);
 
-    cfsetispeed(&options, baudRate);
-    cfsetospeed(&options, baudRate);
+    cfsetispeed(&options, B460800);
+    cfsetospeed(&options, B460800);
 
-//    options.c_cflag |= (CLOCAL | CREAD);    // Enable receiver and set local mode
-//    options.c_cflag &= ~CSIZE;              // Mask the character size bits
-//    options.c_cflag |= CS6 ;// Select 8 data bits
-//    options.c_cflag = BINARY;
-//    options.c_cflag &= ~PARENB;             // No parity bit
-//    options.c_cflag &= ~CSTOPB;             // 1 stop bit
+//    options.c_cflag |= (CLOCAL | CREAD);
+//    options.c_cflag &= ~CSIZE;
+//    options.c_cflag |= CS8 ;
+//
+//    options.c_cflag &= ~PARENB;
+//    options.c_cflag &= ~CSTOPB;
 
     // Set raw input (binary) mode
-    options.c_iflag &= ~(INLCR | ICRNL | IGNCR); // Disable newline and carriage return processing
-    options.c_oflag &= ~OPOST; // Disable output processing
+    options.c_iflag &= ~(INLCR | ICRNL | IGNCR | IXON | IXOFF | IXANY);
+//    options.c_iflag &= ~(INLCR | ICRNL | IGNCR ); // Disable newline and carriage return processing
+    options.c_oflag &= ~OPOST;
 
-    // Set control flags
-    options.c_cflag |= (CS8 | CREAD | CLOCAL); // 8 data bits, enable receiver, local mode
 
-    // Set local modes
-    options.c_lflag &= ~(ICANON | ECHO | ISIG); // Disable canonical mode, echo, and signals
+    options.c_cflag |= (CS8 | CREAD | CLOCAL);
+    options.c_cflag |= CRTSCTS;  // Enable hardware flow control (RTS/CTS)
+
+
+    options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+
+
 
     tcsetattr(fd, TCSANOW, &options);
+    tcflush(fd, TCIFLUSH);
     return fd;
 }
 
@@ -45,19 +53,26 @@ Java_com_example_uart_1app_UartManager_readUART(JNIEnv *env, jobject thiz, jint 
     jbyte *buf = env->GetByteArrayElements(buffer, NULL);
     int totalBytesRead = 0;
     int bytesRead = 0;
+
     while (totalBytesRead < size) {
         bytesRead = read(fd, buf + totalBytesRead, size - totalBytesRead);
         if (bytesRead > 0) {
             totalBytesRead += bytesRead;
         } else if (bytesRead == 0) {
 
-            usleep(1000);
-        } else {
+            usleep(100);
+        }
+        else if (bytesRead == -1 && errno == EAGAIN) {
+            continue;
+        }else {
 
             env->ReleaseByteArrayElements(buffer, buf, 0);
             return -errno;
         }
     }
+
+
+
     env->ReleaseByteArrayElements(buffer, buf, 0);
     return totalBytesRead;
 }

@@ -1,0 +1,15 @@
+# ninja log v5
+1	141	7454776185812304	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+143	236	7454776186748424	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/armeabi-v7a/libnative-lib.so	aa899f654c28a503
+3	321	7454808973782127	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+321	416	7454808974784565	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/armeabi-v7a/libnative-lib.so	aa899f654c28a503
+2	114	7454862915796519	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+115	175	7454862916419533	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/armeabi-v7a/libnative-lib.so	aa899f654c28a503
+1	80	7455001094177731	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+80	138	7455001094653913	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/armeabi-v7a/libnative-lib.so	aa899f654c28a503
+1	377	7455008869349813	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+377	490	7455008870515151	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/armeabi-v7a/libnative-lib.so	aa899f654c28a503
+1	658	7455016217935350	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+658	772	7455016219001073	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/armeabi-v7a/libnative-lib.so	aa899f654c28a503
+2	306	7455019985218387	CMakeFiles/native-lib.dir/native-lib.cpp.o	34a1553414b25302
+307	359	7455019985756989	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/armeabi-v7a/libnative-lib.so	aa899f654c28a503

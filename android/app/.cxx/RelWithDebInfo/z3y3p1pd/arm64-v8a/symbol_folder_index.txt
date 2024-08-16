@@ -1,0 +1,1 @@
+C:\Users\JASON\Desktop\uart_app\build\app\intermediates\cxx\RelWithDebInfo\z3y3p1pd\obj\arm64-v8a

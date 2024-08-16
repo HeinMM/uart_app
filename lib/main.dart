@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.lightBlue),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'UART TEST APP'),
+      home: const MyHomePage(title: 'UART TEST APP (/dev/ttymxc1)'),
     );
   }
 }
@@ -36,13 +36,15 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
 
   static const platform = MethodChannel('com.example.uart_app/uart');
-  String data = 'No data';
-  String canData = 'No CAN Data';
+  String internalRCounter = "0";
+  String error = "0";
+  String error2 = "0";
+  var isStart = false;
 
   @override
   void initState() {
     super.initState();
-    startReadingUart();
+
   }
 
   Future<void> startReadingUart() async {
@@ -51,22 +53,22 @@ class _MyHomePageState extends State<MyHomePage> {
       platform.setMethodCallHandler((call) async {
         if (call.method == "onData") {
           setState(() {
-            data = call.arguments['data'].toString();
-
+            internalRCounter = call.arguments['counter'].toString();
+            error = call.arguments['error'].toString();
           });
         } else if (call.method == "onError") {
           setState(() {
-            data = "Error: ${call.arguments}";
-            canData = "";
+            internalRCounter = "Error : ${call.arguments}";
+            error = "Something is wrong in error counter";
           });
         }
       });
       await platform.invokeMethod('startReading', {'devicePath': '/dev/ttymxc1', 'baudRate': 460800});
-      print("state done1");
+
     } on PlatformException catch (e) {
       setState(() {
-        data = "Failed to start UART: ${e.message}";
-        canData = "";
+        internalRCounter = "Failed to start UART: ${e.message}";
+        error2 = "";
       });
     }
   }
@@ -90,9 +92,42 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('RAW DATA: $data'),
+            Text('Internal Counter: $internalRCounter'),
+            const SizedBox(height: 10),
+            Text('Error count: $error'),
+
             const SizedBox(height: 10),
 
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+              ElevatedButton(child: const Text('Start'), onPressed: (){
+                if(isStart==false){
+                  startReadingUart();
+                  isStart=true;
+                }else{
+
+                }
+
+              }),
+              // ElevatedButton(child: const Text('Stop'), onPressed: () async {
+              //   try {
+              //             await platform.invokeMethod('stopReading');
+              //     } on PlatformException catch (e) {
+              //     setState(() {
+              //             internalRCounter = "Failed to start UART: ${e.message}";
+              //             error2 = "";
+              //     });
+              //   }
+              // }),
+                ElevatedButton(child: const Text('Restart'), onPressed: (){
+                  isStart==false;
+                  Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                          builder: (BuildContext context) => super.widget));
+                }),
+            ],)
           ],
         ),
       ),

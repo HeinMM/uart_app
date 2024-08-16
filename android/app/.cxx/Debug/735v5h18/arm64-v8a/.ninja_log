@@ -1,0 +1,19 @@
+# ninja log v5
+1	201	7454776172700354	CMakeFiles/native-lib.dir/native-lib.cpp.o	ec6c67350e4eeb7e
+202	339	7454776174023900	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/arm64-v8a/libnative-lib.so	465d64c0e473e3e
+1	177	7454778895029820	CMakeFiles/native-lib.dir/native-lib.cpp.o	ec6c67350e4eeb7e
+177	227	7454778895589601	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/arm64-v8a/libnative-lib.so	465d64c0e473e3e
+1	70	7454779431236711	CMakeFiles/native-lib.dir/native-lib.cpp.o	ec6c67350e4eeb7e
+70	155	7454779432075064	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/arm64-v8a/libnative-lib.so	465d64c0e473e3e
+6	312	7454862913431066	CMakeFiles/native-lib.dir/native-lib.cpp.o	ec6c67350e4eeb7e
+313	385	7454862914203611	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/arm64-v8a/libnative-lib.so	465d64c0e473e3e
+3	180	7455001092591318	CMakeFiles/native-lib.dir/native-lib.cpp.o	ec6c67350e4eeb7e
+180	225	7455001093067657	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/arm64-v8a/libnative-lib.so	465d64c0e473e3e
+2	392	7455008863471624	CMakeFiles/native-lib.dir/native-lib.cpp.o	ec6c67350e4eeb7e
+393	557	7455008865128431	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/arm64-v8a/libnative-lib.so	465d64c0e473e3e
+3	372	7455012137311059	CMakeFiles/native-lib.dir/native-lib.cpp.o	ec6c67350e4eeb7e
+372	419	7455012137937312	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/arm64-v8a/libnative-lib.so	465d64c0e473e3e
+2	412	7455015600076248	CMakeFiles/native-lib.dir/native-lib.cpp.o	ec6c67350e4eeb7e
+413	477	7455015600761082	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/arm64-v8a/libnative-lib.so	465d64c0e473e3e
+2	531	7455019979597504	CMakeFiles/native-lib.dir/native-lib.cpp.o	ec6c67350e4eeb7e
+531	588	7455019980266467	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/735v5h18/obj/arm64-v8a/libnative-lib.so	465d64c0e473e3e
