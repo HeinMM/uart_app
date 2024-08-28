@@ -1,0 +1,1 @@
+C:\Users\JASON\Desktop\uart_app\build\app\intermediates\cxx\Debug\5e6wb6j6\obj\arm64-v8a

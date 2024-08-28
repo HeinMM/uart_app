@@ -27,6 +27,8 @@ class UartManager(private val channel: MethodChannel) {
     var internalRCounter = 0
     var errorCount = 0
     var isFirstTime = true
+    var controlValue = 0;
+    var tempValue = 0;
 
 
     fun startReading(devicePath: String, baudRate: Int) {
@@ -39,18 +41,27 @@ class UartManager(private val channel: MethodChannel) {
         }
 
         uartThread =  Thread {
-            while (isReading) {
-                val buffer = ByteArray(17)
-                val bytesRead = readUART(fd, buffer, buffer.size)
 
-//                Log.d("bytesRead", "bytesRead : $bytesRead")
+            while (isReading) {
+
+                val buffer = ByteArray(17)
+
+                val bytesRead = readUART(fd, buffer, buffer.size)
 
                 if (bytesRead == 17 && validatePacket(buffer)) {
                     val data = buffer.toHexString()
 
 //                    val receivedRCounter = (data[8].toString().toInt(16) shl 8) + data[7].toString().toInt(16)
-                    val receivedRCounter = ((buffer[8].toInt() and 0xFF) shl 8) + (buffer[7].toInt() and 0xFF)
+                    tempValue = ((buffer[8].toInt() and 0xFF) shl 8) + (buffer[7].toInt() and 0xFF)
+                    val receivedRCounter = getLastFourDigits(tempValue)
+                    Log.d("receivedRCounter", "receivedRCounter : $receivedRCounter")
+                    Log.d("internalRCounter", "internalRCounter : $internalRCounter")
 
+                    if (internalRCounter >= 10000) {
+                        controlValue++
+                        internalRCounter = 0
+                        isFirstTime = true
+                    }
 
                     if (receivedRCounter == internalRCounter) {
                         internalRCounter++
@@ -65,17 +76,16 @@ class UartManager(private val channel: MethodChannel) {
 
                         }else{
                             errorCount++
-//                            Log.d("Error count", "Error detected! Error count : $errorCount")
+                            Log.d("firstIndex", "First Index : ${buffer[7]}")
+                            Log.d("secoundIndex", "Secound Index : ${buffer[8]}")
+                            Log.d("Error receivedRCounter", "receivedRCounter : $receivedRCounter")
+
+                            break
                         }
-
-
-
                     }
 
 
-                    if (internalRCounter > 10000) {
-                        internalRCounter = 0
-                    }
+
 
                     // Display the current internal R/Counter value
 
@@ -111,12 +121,17 @@ class UartManager(private val channel: MethodChannel) {
 
     fun stopReading() {
         isReading = false
+        isFirstTime = true
     }
 
     private fun ByteArray.toHexString(): String {
         return joinToString(" ") { byte ->
             String.format("%02X", byte)
         }
+    }
+
+    fun getLastFourDigits(value: Int): Int {
+        return value % 10000
     }
 
 
@@ -126,7 +141,7 @@ class UartManager(private val channel: MethodChannel) {
                 packet[1] == 0x0D.toByte() &&
                 packet[15] == 0xAA.toByte() &&
                 packet[16] == 0x7F.toByte()
-//        return true;
+        /*return true;*/
     }
 
 

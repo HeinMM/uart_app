@@ -92,9 +92,19 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Internal Counter: $internalRCounter'),
+            Text('Internal Counter: $internalRCounter',
+              style:  const TextStyle(
+                fontSize: 20.0,
+
+              ),
+            ),
             const SizedBox(height: 10),
-            Text('Error count: $error'),
+            Text('Error count: $error',
+             style: const TextStyle(
+               fontSize: 18.0,
+
+             ),
+            ),
 
             const SizedBox(height: 10),
 
