@@ -16,13 +16,21 @@ class MainActivity : FlutterActivity() {
             MethodChannel(it, CHANNEL).apply {
                 setMethodCallHandler { call, result ->
                     when (call.method) {
-                        "startReading" -> {
 
+                        "openUart" -> {
                             val devicePath = call.argument<String>("devicePath")
                             val baudRate = call.argument<Int>("baudRate") ?: 460800
                             uartManager = UartManager(this)
-                            uartManager.startReading(devicePath ?: "/dev/ttymxc1", baudRate)
-                            result.success(null)
+                            uartManager.openUart(devicePath ?: "/dev/ttymxc1", baudRate)
+                        }
+
+                        "startReading" -> {
+                            uartManager.startReadingPort()
+                        }
+
+                        "writeData" -> {
+                            uartManager.startWritePort()
+                            /*result.success(null)*/
                         }
 
                         "stopReading" -> {

@@ -41,12 +41,43 @@ class _MyHomePageState extends State<MyHomePage> {
   String error2 = "0";
   var isStart = false;
 
+  String sendData = "";
+  String info = "There is no updated Info";
+
   @override
   void initState() {
     super.initState();
 
   }
 
+  // OPEN port
+  Future<void> openUart() async {
+
+    try {
+      platform.setMethodCallHandler((call) async {
+
+        if (call.method == "info") {
+
+          setState(() {
+            info = "Open UART port successfully";
+          });
+        } else if (call.method == "onError") {
+          setState(() {
+            error = "Something is wrong in OPEN PORT";
+          });
+        }
+      });
+
+      await platform.invokeMethod('openUart', {'devicePath': '/dev/ttymxc1', 'baudRate': 460800});
+
+    } on PlatformException catch (e) {
+      setState(() {
+        error = "Failed to open UART: ${e.message}";
+      });
+    }
+  }
+
+  // READ Data
   Future<void> startReadingUart() async {
 
     try {
@@ -64,6 +95,31 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       });
       await platform.invokeMethod('startReading', {'devicePath': '/dev/ttymxc1', 'baudRate': 460800});
+
+    } on PlatformException catch (e) {
+      setState(() {
+        internalRCounter = "Failed to start UART: ${e.message}";
+        error2 = "";
+      });
+    }
+  }
+
+  // Write Data
+  Future<void> writeDataUart() async {
+
+    try {
+      platform.setMethodCallHandler((call) async {
+        if (call.method == "sendData") {
+          setState(() {
+            sendData = call.arguments['sendData'].toString();
+          });
+        } else if (call.method == "onError") {
+          setState(() {
+            sendData = "Error : ${call.arguments}";
+          });
+        }
+      });
+      await platform.invokeMethod('writeData');
 
     } on PlatformException catch (e) {
       setState(() {
@@ -92,6 +148,13 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Text('Info: $info',
+              style:  const TextStyle(
+                fontSize: 20.0,
+
+              ),
+            ),
+            const SizedBox(height: 10,),
             Text('Internal Counter: $internalRCounter',
               style:  const TextStyle(
                 fontSize: 20.0,
@@ -111,25 +174,21 @@ class _MyHomePageState extends State<MyHomePage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+
+                ElevatedButton(child: const Text('Open'), onPressed: (){
+
+                    openUart();
+
+                }),
+
               ElevatedButton(child: const Text('Start'), onPressed: (){
                 if(isStart==false){
                   startReadingUart();
                   isStart=true;
                 }else{
-
                 }
-
               }),
-              // ElevatedButton(child: const Text('Stop'), onPressed: () async {
-              //   try {
-              //             await platform.invokeMethod('stopReading');
-              //     } on PlatformException catch (e) {
-              //     setState(() {
-              //             internalRCounter = "Failed to start UART: ${e.message}";
-              //             error2 = "";
-              //     });
-              //   }
-              // }),
+
                 ElevatedButton(child: const Text('Restart'), onPressed: (){
                   isStart==false;
                   Navigator.pushReplacement(
@@ -137,6 +196,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       MaterialPageRoute(
                           builder: (BuildContext context) => super.widget));
                 }),
+
+                ElevatedButton(onPressed: (){
+                      writeDataUart();
+                }, child: const Text("Send Data"))
             ],)
           ],
         ),

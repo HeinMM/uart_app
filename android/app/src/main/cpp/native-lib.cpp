@@ -6,11 +6,15 @@
 #include <chrono>
 #include <iostream>
 #include <sys/ioctl.h>
+#include <cstdint>
+#include <android/log.h>
+
+int fd;
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManager_openUART(JNIEnv *env, jobject thiz, jstring devicePath, jint baudRate) {
     const char *path = env->GetStringUTFChars(devicePath, NULL);
-    int fd = open(path, O_RDWR | O_NOCTTY | O_NONBLOCK);
+     fd = open(path, O_RDWR | O_NOCTTY | O_NONBLOCK);
     env->ReleaseStringUTFChars(devicePath, path);
     if (fd < 0) {
         return -errno;
@@ -71,11 +75,24 @@ Java_com_example_uart_1app_UartManager_readUART(JNIEnv *env, jobject thiz, jint 
         }
     }
 
-
-
     env->ReleaseByteArrayElements(buffer, buf, 0);
     return totalBytesRead;
 }
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_example_uart_1app_UartManager_writeUART(JNIEnv* env, jobject obj, jbyteArray data) {
+
+    jbyte* bytes = env->GetByteArrayElements(data, nullptr);
+    jsize length = env->GetArrayLength(data);
+
+    int result = write(fd, bytes, length);
+    __android_log_print(ANDROID_LOG_ERROR, "TRACKERS", "This is result ->%d", result);
+    env->ReleaseByteArrayElements(data, bytes, 0);
+
+    return result;
+
+}
+
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManager_closeUART(JNIEnv *env, jobject thiz, jint fd) {
@@ -85,3 +102,4 @@ Java_com_example_uart_1app_UartManager_closeUART(JNIEnv *env, jobject thiz, jint
     }
     return 0;
 }
+

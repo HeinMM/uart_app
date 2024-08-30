@@ -15,113 +15,97 @@ class UartManager(private val channel: MethodChannel) {
     }
 
     // Declare the native methods
-    external fun openUART(devicePath: String, baudRate: Int): Int
+    private external fun openUART(devicePath: String, baudRate: Int): Int
     private external fun readUART(fd: Int, buffer: ByteArray, size: Int): Int
-    external fun closeUART(fd: Int): Int
+    private external fun writeUART(buffer: ByteArray): Int
+    private external fun closeUART(fd: Int): Int
+
+
     private var uartThread: Thread? = null
 
     private var isReading = true
 
     private val mainHandler = Handler(Looper.getMainLooper()) // Handler for main thread
 
-    var internalRCounter = 0
-    var errorCount = 0
-    var isFirstTime = true
-    var controlValue = 0;
-    var tempValue = 0;
+    private var internalRCounter = 0
+    private var errorCount = 0
+    private var isFirstTime = true
+    private var controlValue = 0;
+    private var tempValue = 0;
+    private var fd = 0;
 
-
-    fun startReading(devicePath: String, baudRate: Int) {
-        val fd = openUART(devicePath, baudRate)
+    //OPEN PORT UART
+    fun openUart(devicePath: String, baudRate: Int){
+         fd = openUART(devicePath, baudRate)
+        Log.d("fd value", "fd value: $fd")
         if (fd < 0) {
             mainHandler.post {
                 channel.invokeMethod("onError", "Failed to open UART")
+            }
+
+        }
+
+            mainHandler.post {
+                channel.invokeMethod("info", "Open UART port successfully")
+            }
+
+
+    }
+
+    //READ PORT UART DATA
+    fun startReadingPort() {
+
+        if (fd < 0) {
+            mainHandler.post {
+                channel.invokeMethod("onError", "Failed to READ UART DATA")
             }
             return
         }
 
         uartThread =  Thread {
 
-            while (isReading) {
-
-                val buffer = ByteArray(17)
-
-                val bytesRead = readUART(fd, buffer, buffer.size)
-
-                if (bytesRead == 17 && validatePacket(buffer)) {
-                    val data = buffer.toHexString()
-
-//                    val receivedRCounter = (data[8].toString().toInt(16) shl 8) + data[7].toString().toInt(16)
-                    tempValue = ((buffer[8].toInt() and 0xFF) shl 8) + (buffer[7].toInt() and 0xFF)
-                    val receivedRCounter = getLastFourDigits(tempValue)
-                    Log.d("receivedRCounter", "receivedRCounter : $receivedRCounter")
-                    Log.d("internalRCounter", "internalRCounter : $internalRCounter")
-
-                    if (internalRCounter >= 10000) {
-                        controlValue++
-                        internalRCounter = 0
-                        isFirstTime = true
-                    }
-
-                    if (receivedRCounter == internalRCounter) {
-                        internalRCounter++
-                    } else {
-
-                        internalRCounter = receivedRCounter + 1
-                        //errorCount++
-
-                        if (isFirstTime){
-
-                            isFirstTime = false
-
-                        }else{
-                            errorCount++
-                            Log.d("firstIndex", "First Index : ${buffer[7]}")
-                            Log.d("secoundIndex", "Secound Index : ${buffer[8]}")
-                            Log.d("Error receivedRCounter", "receivedRCounter : $receivedRCounter")
-
-                            break
-                        }
-                    }
-
-
-
-
-                    // Display the current internal R/Counter value
-
-//                    Log.d("Internal R/Counter", "Current Internal R/Counter : $internalRCounter")
-
-
-
-                    mainHandler.post {
-
-
-                        Log.d("RAW DATA", "RAW DATA : $data")
-//                        Log.d("Error count", "Error detected! Error count : $errorCount")
-//                        Log.d("Internal R/Counter", "Current Internal R/Counter : $internalRCounter")
-
-                        channel.invokeMethod("onData", mapOf("counter" to internalRCounter , "error" to errorCount))
-                    }
-
-                } else if (bytesRead < 0) {
-
-                    mainHandler.post {
-                        channel.invokeMethod("onError", "Read error: $bytesRead")
-                    }
-
-                }
-                Thread.sleep(5) // sleep time to handle 1000 packets per second
+            while (true) {
+                readData();
             }
-            closeUART(fd)
+
         }
         uartThread?.priority = Thread.MAX_PRIORITY
         uartThread?.start()
     }
 
+    //WRITE PORT UART DATA
+    fun startWritePort(){
+       var count = 0;
+//       while (count<1000){
+        while (count<1){
+           if (fd < 0) {
+               mainHandler.post {
+                   channel.invokeMethod("onError", "Failed to Write UART DATA ")
+               }
+               return
+           }
+           Log.d("Write", "write data start")
+           // Example CAN data
+           val canData = constructPacket()
+           val writeResult = writeUART(canData)
+           Log.e("Write", "write value -> $writeResult")
+           if (writeResult == -1) {
+               Log.e("Write", "Failed to write data")
+           } else {
+               Log.d("Write", "Data written successfully")
+           }
+           count++
+       }
 
+        /*uartToCanBridge();*/
+
+    }
+
+    //CLOSE PORT AND STOP READ DATA
     fun stopReading() {
         isReading = false
         isFirstTime = true
+        Log.d("Test","fd value -> $fd");
     }
 
     private fun ByteArray.toHexString(): String {
@@ -144,7 +128,82 @@ class UartManager(private val channel: MethodChannel) {
         /*return true;*/
     }
 
+   private fun readData(){
+       val buffer = ByteArray(17)
 
+       val bytesRead = readUART(fd, buffer, buffer.size)
+
+       Log.d("BYTE", "this is bytesRead -> $bytesRead")
+
+       if (bytesRead == 17 && validatePacket(buffer)) {
+           val data = buffer.toHexString()
+
+//                    val receivedRCounter = (data[8].toString().toInt(16) shl 8) + data[7].toString().toInt(16)
+           tempValue = ((buffer[8].toInt() and 0xFF) shl 8) + (buffer[7].toInt() and 0xFF)
+           val receivedRCounter = getLastFourDigits(tempValue)
+           Log.d("receivedRCounter", "receivedRCounter : $receivedRCounter")
+           Log.d("internalRCounter", "internalRCounter : $internalRCounter")
+
+           if (internalRCounter >= 10000) {
+               controlValue++
+               internalRCounter = 0
+               isFirstTime = true
+           }
+
+           if (receivedRCounter == internalRCounter) {
+               internalRCounter++
+           } else {
+
+               internalRCounter = receivedRCounter + 1
+               //errorCount++
+
+               if (isFirstTime){
+
+                   isFirstTime = false
+
+               }else{
+                   errorCount++
+               }
+           }
+
+           mainHandler.post {
+
+
+               Log.d("RAW DATA", "RAW DATA : $data")
+
+               channel.invokeMethod("onData", mapOf("counter" to internalRCounter , "error" to errorCount))
+           }
+
+       } else if (bytesRead < 0) {
+
+           mainHandler.post {
+               channel.invokeMethod("onError", "Read error: $bytesRead")
+           }
+
+       }
+       Thread.sleep(5) // sleep time to handle 1000 packets per second
+   }
+
+    fun constructPacket(): ByteArray {
+        // Packet components
+        val startOfPacket: Byte = 0x7E
+        val length: Byte = 0x0D // length
+        val canId: ByteArray = byteArrayOf(0x0F, 0x00, 0x00, 0xFF.toByte())
+        val dlc: Byte = 0x08
+        val data: ByteArray = byteArrayOf(0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+        val endOfPacket: Byte = 0xAA.toByte()
+        val endOfPacket2: Byte = 0x7F
+
+        // Construct the packet
+        return byteArrayOf(
+            startOfPacket,
+            length,
+            *canId,
+            dlc,
+            *data,
+            endOfPacket, endOfPacket2
+        )
+    }
 
 
 }
