@@ -25,6 +25,7 @@ class MainActivity : FlutterActivity() {
                         }
 
                         "startReading" -> {
+                            //uartManager = UartManager(this)
                             uartManager.startReadingPort()
                         }
 

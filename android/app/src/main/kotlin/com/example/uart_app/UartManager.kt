@@ -54,18 +54,22 @@ class UartManager(private val channel: MethodChannel) {
 
     //READ PORT UART DATA
     fun startReadingPort() {
-
+        /*var readFd = openUART("/dev/ttymxc1", 460800)*/
         if (fd < 0) {
             mainHandler.post {
                 channel.invokeMethod("onError", "Failed to READ UART DATA")
             }
-            return
+
+        }
+
+        mainHandler.post {
+            channel.invokeMethod("info", "Open UART port successfully")
         }
 
         uartThread =  Thread {
 
             while (true) {
-                readData();
+                readData(fd);
             }
 
         }
@@ -121,20 +125,25 @@ class UartManager(private val channel: MethodChannel) {
 
 
     private fun validatePacket(packet: ByteArray): Boolean {
-        return packet[0] == 0x7E.toByte() &&
-                packet[1] == 0x0D.toByte() &&
+        /*return packet[0] == 0x7E.toByte() &&
+                packet[1] == 0xAA.toByte() &&
                 packet[15] == 0xAA.toByte() &&
-                packet[16] == 0x7F.toByte()
-        /*return true;*/
+                packet[16] == 0x7F.toByte()*/
+        return true;
     }
 
-   private fun readData(){
+   private fun readData(readFd: Int){
+
+      /* var fd = openUART("/dev/ttymxc1", 460800);*/
+
+
        val buffer = ByteArray(17)
 
-       val bytesRead = readUART(fd, buffer, buffer.size)
+       val bytesRead = readUART(readFd, buffer, buffer.size)
 
        Log.d("BYTE", "this is bytesRead -> $bytesRead")
 
+       Log.d("RAW DATA", "RAW DATA : ${buffer.toHexString()}")
        if (bytesRead == 17 && validatePacket(buffer)) {
            val data = buffer.toHexString()
 
