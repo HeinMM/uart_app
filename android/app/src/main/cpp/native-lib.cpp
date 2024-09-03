@@ -10,8 +10,9 @@
 #include <android/log.h>
 
 // Global buffer declaration
-jbyte* globalBuf = nullptr;
+/*jbyte* globalBuf = nullptr;*/
 bool isReading = true;
+std::mutex uartMutex;
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManager_openUART(JNIEnv *env, jobject thiz, jstring devicePath, jint baudRate) {
@@ -67,17 +68,18 @@ Java_com_example_uart_1app_UartManager_openUART(JNIEnv *env, jobject thiz, jstri
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManager_readUART(JNIEnv *env, jobject thiz,jint fd1, jbyteArray buffer, jint size) {
+    std::lock_guard<std::mutex> lock(uartMutex);
     int totalBytesRead = 0;
     int bytesRead = 0;
 
 
-    globalBuf = env->GetByteArrayElements(buffer, nullptr);
+    jbyte* localBuf = env->GetByteArrayElements(buffer, nullptr);
 
 
 
 
     while (totalBytesRead < size && isReading) {
-        bytesRead = read(fd1, globalBuf + totalBytesRead, size - totalBytesRead);
+        bytesRead = read(fd1, localBuf + totalBytesRead, size - totalBytesRead);
         if (bytesRead > 0) {
             totalBytesRead += bytesRead;
         } else if (bytesRead == 0) {
@@ -88,17 +90,18 @@ Java_com_example_uart_1app_UartManager_readUART(JNIEnv *env, jobject thiz,jint f
             continue;
         }else {
 
-            env->ReleaseByteArrayElements(buffer, globalBuf, 0);
+            env->ReleaseByteArrayElements(buffer, localBuf, 0);
             return -errno;
         }
     }
 
-    env->ReleaseByteArrayElements(buffer, globalBuf, 0);
+    env->ReleaseByteArrayElements(buffer, localBuf, 0);
     return totalBytesRead;
 }
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManager_writeUART(JNIEnv* env, jobject obj, jint fd2, jbyteArray data) {
+    std::lock_guard<std::mutex> lock(uartMutex);
 
     jbyte* bytes = env->GetByteArrayElements(data, nullptr);
     jsize length = env->GetArrayLength(data);
@@ -115,6 +118,7 @@ Java_com_example_uart_1app_UartManager_writeUART(JNIEnv* env, jobject obj, jint 
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManager_closeUART(JNIEnv *env, jobject thiz, jint fd1) {
+    std::lock_guard<std::mutex> lock(uartMutex);
     // Flush the port
     /*tcflush(fd1, TCIOFLUSH);*/
     isReading = false;
