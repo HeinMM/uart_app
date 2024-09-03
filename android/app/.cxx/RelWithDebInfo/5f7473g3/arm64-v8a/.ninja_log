@@ -1,8 +1,7 @@
 # ninja log v5
 2	514	7459956509754735	CMakeFiles/native-lib.dir/native-lib.cpp.o	b2dc4c82d1479abc
+0	8	0	clean	d2c85ad1949ce46b
 514	565	7459956510324748	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/RelWithDebInfo/5f7473g3/obj/arm64-v8a/libnative-lib.so	df1ee47145505632
-0	7	0	clean	d2c85ad1949ce46b
-4	100	7467038323829185	build.ninja	84295545532af8a5
-1	62	7467038323829185	build.ninja	84295545532af8a5
-0	4	0	clean	d2c85ad1949ce46b
-1	12	0	clean	d2c85ad1949ce46b
+1	62	7469734151649165	build.ninja	84295545532af8a5
+7	528	7469734158126038	CMakeFiles/native-lib.dir/native-lib.cpp.o	b2dc4c82d1479abc
+528	593	7469734158820300	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/RelWithDebInfo/5f7473g3/obj/arm64-v8a/libnative-lib.so	df1ee47145505632

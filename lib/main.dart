@@ -40,6 +40,7 @@ class _MyHomePageState extends State<MyHomePage> {
   String error = "0";
   String error2 = "0";
   var isStart = false;
+  var isOpenPort = false;
 
   String sendData = "";
   String info = "There is no updated Info";
@@ -60,10 +61,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
           setState(() {
             info = "Open UART port successfully";
+            isOpenPort = true;
           });
         } else if (call.method == "onError") {
           setState(() {
-            error = "Something is wrong in OPEN PORT";
+            info = "Something is wrong in OPEN PORT";
+            isOpenPort = false;
           });
         }
       });
@@ -73,6 +76,7 @@ class _MyHomePageState extends State<MyHomePage> {
     } on PlatformException catch (e) {
       setState(() {
         error = "Failed to open UART: ${e.message}";
+        isOpenPort = false;
       });
     }
   }
@@ -86,11 +90,18 @@ class _MyHomePageState extends State<MyHomePage> {
           setState(() {
             internalRCounter = call.arguments['counter'].toString();
             error = call.arguments['error'].toString();
+
+              isStart = true;
+
+
           });
         } else if (call.method == "onError") {
           setState(() {
             internalRCounter = "Error : ${call.arguments}";
             error = "Something is wrong in error counter";
+
+              isStart = false;
+
           });
         }
       });
@@ -174,32 +185,56 @@ class _MyHomePageState extends State<MyHomePage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                isStart||isOpenPort ? const SizedBox() : ElevatedButton(child: const Text('Open'), onPressed: (){
 
-                ElevatedButton(child: const Text('Open'), onPressed: (){
+                  openUart();
 
-                    openUart();
+                  setState(() {
+                    isOpenPort = true;
+                  });
 
                 }),
 
-              ElevatedButton(child: const Text('Start'), onPressed: (){
+              isOpenPort? ElevatedButton(child: const Text('Start'), onPressed: (){
                 if(isStart==false){
                   startReadingUart();
-                  isStart=true;
+                  /*isStart=true;*/
                 }else{
+                  showDialog(
+                    barrierDismissible: false,
+                    context: context,
+                    builder: (BuildContext context) => AlertDialog(
+                      title: const Text("WARING"),
+                      content: const Text("YOU ALREADY STARTED. YOU NEED RESTART?"),
+                      elevation: 24,
+                      actions: [
+                        OutlinedButton(child: const Text("OK"), onPressed: () {
+                          Navigator.of(context).pop();
+                        },)
+                      ],
+                    ),
+                  );
                 }
-              }),
+              }): const SizedBox(),
 
-                ElevatedButton(child: const Text('Restart'), onPressed: (){
-                  isStart==false;
+
+
+               isOpenPort? ElevatedButton(onPressed: (){
+                      writeDataUart();
+                }, child: const Text("Send Data")): const SizedBox(),
+
+                isOpenPort? ElevatedButton(child: const Text('Restart'), onPressed: (){
+                  setState(() {
+                    isStart=true;
+                    isOpenPort = false;
+                  }
+                  );
+
                   Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
                           builder: (BuildContext context) => super.widget));
-                }),
-
-                ElevatedButton(onPressed: (){
-                      writeDataUart();
-                }, child: const Text("Send Data"))
+                },): const SizedBox(),
             ],)
           ],
         ),

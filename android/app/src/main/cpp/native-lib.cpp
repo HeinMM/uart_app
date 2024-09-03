@@ -9,12 +9,15 @@
 #include <cstdint>
 #include <android/log.h>
 
-int fd = -1;
+// Global buffer declaration
+jbyte* globalBuf = nullptr;
+bool isReading = true;
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManager_openUART(JNIEnv *env, jobject thiz, jstring devicePath, jint baudRate) {
+    isReading = true;
     const char *path = env->GetStringUTFChars(devicePath, nullptr);
-     fd = open(path, O_RDWR | O_NOCTTY | O_NONBLOCK | O_ASYNC);
+     int fd = open(path, O_RDWR | O_NOCTTY | O_NONBLOCK  );
     env->ReleaseStringUTFChars(devicePath, path);
     if (fd < 0) {
         return -errno;
@@ -58,17 +61,23 @@ Java_com_example_uart_1app_UartManager_openUART(JNIEnv *env, jobject thiz, jstri
         return -errno;
     }
     tcflush(fd, TCIFLUSH);
+
     return fd;
 }
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManager_readUART(JNIEnv *env, jobject thiz,jint fd1, jbyteArray buffer, jint size) {
-    jbyte *buf = env->GetByteArrayElements(buffer, nullptr);
     int totalBytesRead = 0;
     int bytesRead = 0;
 
-    while (totalBytesRead < size) {
-        bytesRead = read(fd1, buf + totalBytesRead, size - totalBytesRead);
+
+    globalBuf = env->GetByteArrayElements(buffer, nullptr);
+
+
+
+
+    while (totalBytesRead < size && isReading) {
+        bytesRead = read(fd1, globalBuf + totalBytesRead, size - totalBytesRead);
         if (bytesRead > 0) {
             totalBytesRead += bytesRead;
         } else if (bytesRead == 0) {
@@ -79,23 +88,23 @@ Java_com_example_uart_1app_UartManager_readUART(JNIEnv *env, jobject thiz,jint f
             continue;
         }else {
 
-            env->ReleaseByteArrayElements(buffer, buf, 0);
+            env->ReleaseByteArrayElements(buffer, globalBuf, 0);
             return -errno;
         }
     }
 
-    env->ReleaseByteArrayElements(buffer, buf, 0);
+    env->ReleaseByteArrayElements(buffer, globalBuf, 0);
     return totalBytesRead;
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_example_uart_1app_UartManager_writeUART(JNIEnv* env, jobject obj, jbyteArray data) {
+Java_com_example_uart_1app_UartManager_writeUART(JNIEnv* env, jobject obj, jint fd2, jbyteArray data) {
 
     jbyte* bytes = env->GetByteArrayElements(data, nullptr);
     jsize length = env->GetArrayLength(data);
 
     /*int result = write(fd, bytes, length);*/
-    int result = write(fd, bytes, length);
+    int result = write(fd2, bytes, length);
     __android_log_print(ANDROID_LOG_ERROR, "TRACKERS", "This is result ->%d", result);
     env->ReleaseByteArrayElements(data, bytes, 0);
 
@@ -105,12 +114,22 @@ Java_com_example_uart_1app_UartManager_writeUART(JNIEnv* env, jobject obj, jbyte
 
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_example_uart_1app_UartManager_closeUART(JNIEnv *env, jobject thiz, jint fd) {
-    int result = close(fd);
+Java_com_example_uart_1app_UartManager_closeUART(JNIEnv *env, jobject thiz, jint fd1) {
+    // Flush the port
+    /*tcflush(fd1, TCIOFLUSH);*/
+    isReading = false;
+    int result = close(fd1);
+
     /*int result = 0;*/
     if (result < 0) {
         return -errno;
     }
     return 0;
+}
+
+void clearBuffer(jbyte* buf, jsize length) {
+    if (buf != nullptr && length > 0) {
+        memset(buf, 0, length);
+    }
 }
 

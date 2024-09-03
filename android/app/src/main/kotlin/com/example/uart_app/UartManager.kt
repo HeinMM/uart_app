@@ -17,7 +17,7 @@ class UartManager(private val channel: MethodChannel) {
     // Declare the native methods
     private external fun openUART(devicePath: String, baudRate: Int): Int
     private external fun readUART(fd: Int, buffer: ByteArray, size: Int): Int
-    private external fun writeUART(buffer: ByteArray): Int
+    private external fun writeUART(fd: Int, buffer: ByteArray): Int
     private external fun closeUART(fd: Int): Int
 
 
@@ -32,7 +32,7 @@ class UartManager(private val channel: MethodChannel) {
     private var isFirstTime = true
     private var controlValue = 0;
     private var tempValue = 0;
-    private var fd = 0;
+    private var fd = -1;
 
     //OPEN PORT UART
     fun openUart(devicePath: String, baudRate: Int){
@@ -43,12 +43,11 @@ class UartManager(private val channel: MethodChannel) {
                 channel.invokeMethod("onError", "Failed to open UART")
             }
 
-        }
-
+        }else{
             mainHandler.post {
                 channel.invokeMethod("info", "Open UART port successfully")
             }
-
+        }
 
     }
 
@@ -59,16 +58,19 @@ class UartManager(private val channel: MethodChannel) {
             mainHandler.post {
                 channel.invokeMethod("onError", "Failed to READ UART DATA")
             }
-
+            return
+        }
+        else {
+            mainHandler.post {
+                channel.invokeMethod("info", "Read UART port successfully")
+            }
         }
 
-        mainHandler.post {
-            channel.invokeMethod("info", "Open UART port successfully")
-        }
+
 
         uartThread =  Thread {
 
-            while (true) {
+            while (isReading) {
                 readData(fd);
             }
 
@@ -88,10 +90,10 @@ class UartManager(private val channel: MethodChannel) {
                }
                return
            }
-           Log.d("Write", "write data start")
+
            // Example CAN data
            val canData = constructPacket()
-           val writeResult = writeUART(canData)
+           val writeResult = writeUART(fd,canData)
            Log.e("Write", "write value -> $writeResult")
            if (writeResult == -1) {
                Log.e("Write", "Failed to write data")
@@ -107,8 +109,16 @@ class UartManager(private val channel: MethodChannel) {
 
     //CLOSE PORT AND STOP READ DATA
     fun stopReading() {
+        if (fd < 0) {
+            mainHandler.post {
+                channel.invokeMethod("info", "Failed to Close UART DATA ")
+            }
+            return
+        }
         isReading = false
         isFirstTime = true
+        closeUART(fd);
+        fd = -1
         Log.d("Test","fd value -> $fd");
     }
 
@@ -125,11 +135,11 @@ class UartManager(private val channel: MethodChannel) {
 
 
     private fun validatePacket(packet: ByteArray): Boolean {
-        /*return packet[0] == 0x7E.toByte() &&
-                packet[1] == 0xAA.toByte() &&
+        return packet[0] == 0x7E.toByte() &&
+                packet[1] == 0x0D.toByte() &&
                 packet[15] == 0xAA.toByte() &&
-                packet[16] == 0x7F.toByte()*/
-        return true;
+                packet[16] == 0x7F.toByte()
+        /*return true;*/
     }
 
    private fun readData(readFd: Int){
@@ -196,7 +206,7 @@ class UartManager(private val channel: MethodChannel) {
     fun constructPacket(): ByteArray {
         // Packet components
         val startOfPacket: Byte = 0x7E
-        val length: Byte = 0x0D // length
+        val length: Byte = 0x0D.toByte() // length
         val canId: ByteArray = byteArrayOf(0x0F, 0x00, 0x00, 0xFF.toByte())
         val dlc: Byte = 0x08
         val data: ByteArray = byteArrayOf(0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)

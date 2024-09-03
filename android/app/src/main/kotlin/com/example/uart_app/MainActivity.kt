@@ -30,11 +30,13 @@ class MainActivity : FlutterActivity() {
                         }
 
                         "writeData" -> {
+                            Log.d("Testing", "work from write Data")
                             uartManager.startWritePort()
                             /*result.success(null)*/
                         }
 
                         "stopReading" -> {
+
                             uartManager.stopReading()
                             result.success(null)
                         }
