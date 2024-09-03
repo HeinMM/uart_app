@@ -14,6 +14,8 @@
 bool isReading = true;
 std::mutex uartMutex;
 
+
+
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManager_openUART(JNIEnv *env, jobject thiz, jstring devicePath, jint baudRate) {
     isReading = true;
@@ -68,7 +70,9 @@ Java_com_example_uart_1app_UartManager_openUART(JNIEnv *env, jobject thiz, jstri
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManager_readUART(JNIEnv *env, jobject thiz,jint fd1, jbyteArray buffer, jint size) {
-    std::lock_guard<std::mutex> lock(uartMutex);
+    // Read with JNI Buffer
+   /* std::lock_guard<std::mutex> lock(uartMutex);
+
     int totalBytesRead = 0;
     int bytesRead = 0;
 
@@ -81,7 +85,15 @@ Java_com_example_uart_1app_UartManager_readUART(JNIEnv *env, jobject thiz,jint f
     while (totalBytesRead < size && isReading) {
         bytesRead = read(fd1, localBuf + totalBytesRead, size - totalBytesRead);
         if (bytesRead > 0) {
+
             totalBytesRead += bytesRead;
+            // Look for the start of a valid CAN frame (e.g., specific start bytes like 0x7E 0x0D)
+            if (totalBytesRead >= 17) {
+                if (localBuf[0] != 0x7E && localBuf[1] != 0x0D) {
+                    memmove(localBuf, localBuf + 1, totalBytesRead - 1);
+                    totalBytesRead--;
+                }
+            }
         } else if (bytesRead == 0) {
 
             usleep(100);
@@ -96,6 +108,40 @@ Java_com_example_uart_1app_UartManager_readUART(JNIEnv *env, jobject thiz,jint f
     }
 
     env->ReleaseByteArrayElements(buffer, localBuf, 0);
+    return totalBytesRead;*/
+
+    // Read with C++ NativeBuffer
+    if (fd1 < 0 || buffer == nullptr || size <= 0) {
+        return -1;  // Return an error if inputs are invalid
+    }
+
+    jbyte* nativeBuffer = new jbyte[size];
+    if (!nativeBuffer) {
+        return -1;  // Return an error if allocation fails
+    }
+
+    int totalBytesRead = 0;
+    while (totalBytesRead < size) {
+        int bytesRead = read(fd1, nativeBuffer + totalBytesRead, size - totalBytesRead);
+        if (bytesRead > 0) {
+            totalBytesRead += bytesRead;
+        } else if (bytesRead == 0) {
+            // No data available, sleep briefly to avoid busy-waiting
+            usleep(1000);  // Sleep for 1 millisecond
+        } else if (bytesRead < 0 && errno == EAGAIN) {
+            // No data available but no error (non-blocking mode)
+            continue;
+        } else {
+            // Handle other read errors
+            delete[] nativeBuffer;
+            return -errno;
+        }
+    }
+
+    // Copy the data from the native buffer to the Java array
+    env->SetByteArrayRegion(buffer, 0, totalBytesRead, nativeBuffer);
+
+    delete[] nativeBuffer;  // Free the native buffer
     return totalBytesRead;
 }
 

@@ -5,3 +5,6 @@
 1	62	7469734151649165	build.ninja	84295545532af8a5
 7	528	7469734158126038	CMakeFiles/native-lib.dir/native-lib.cpp.o	b2dc4c82d1479abc
 528	593	7469734158820300	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/RelWithDebInfo/5f7473g3/obj/arm64-v8a/libnative-lib.so	df1ee47145505632
+0	5	0	clean	d2c85ad1949ce46b
+5	915	7470536538786942	CMakeFiles/native-lib.dir/native-lib.cpp.o	b2dc4c82d1479abc
+916	1041	7470536540122480	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/RelWithDebInfo/5f7473g3/obj/arm64-v8a/libnative-lib.so	df1ee47145505632
