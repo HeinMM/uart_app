@@ -4,7 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import io.flutter.plugin.common.MethodChannel
-import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 
 
 class UartManager(private val channel: MethodChannel) {
@@ -23,18 +23,19 @@ class UartManager(private val channel: MethodChannel) {
 
     private var uartThread: Thread? = null
 
-    private var isReading = true
+    @Volatile private var isReading = true
 
     private val mainHandler = Handler(Looper.getMainLooper()) // Handler for main thread
 
-    private var internalRCounter = 0
-    private var errorCount = 0
-    private var isFirstTime = true
+    private var internalRCounter = AtomicInteger(0)
+    private var errorCount = AtomicInteger(0)
+    @Volatile private var isFirstTime = true
     private var controlValue = 0;
     private var tempValue = 0;
-    private var fd = -1;
+    @Volatile private var fd = -1;
 
     //OPEN PORT UART
+    @Synchronized
     fun openUart(devicePath: String, baudRate: Int){
          fd = openUART(devicePath, baudRate)
         Log.d("fd value", "fd value: $fd")
@@ -72,10 +73,11 @@ class UartManager(private val channel: MethodChannel) {
 
             while (isReading) {
                 readData(fd);
+                Thread.sleep(50)
             }
 
         }
-        uartThread?.priority = Thread.MAX_PRIORITY
+        /*uartThread?.priority = Thread.MAX_PRIORITY*/
         uartThread?.start()
     }
 
@@ -116,9 +118,11 @@ class UartManager(private val channel: MethodChannel) {
             return
         }
         isReading = false
-        isFirstTime = true
+        uartThread?.join()
+
         closeUART(fd);
         fd = -1
+        isFirstTime = true
         Log.d("Test","fd value -> $fd");
     }
 
@@ -163,17 +167,17 @@ class UartManager(private val channel: MethodChannel) {
            Log.d("receivedRCounter", "receivedRCounter : $receivedRCounter")
            Log.d("internalRCounter", "internalRCounter : $internalRCounter")
 
-           if (internalRCounter >= 10000) {
+           if (internalRCounter.get() >= 10000) {
                controlValue++
-               internalRCounter = 0
+               internalRCounter.set(0)
                isFirstTime = true
            }
 
-           if (receivedRCounter == internalRCounter) {
-               internalRCounter++
+           if (receivedRCounter == internalRCounter.get()) {
+               internalRCounter.incrementAndGet()
            } else {
 
-               internalRCounter = receivedRCounter + 1
+               internalRCounter.set(receivedRCounter + 1)
                //errorCount++
 
                if (isFirstTime){
@@ -181,7 +185,7 @@ class UartManager(private val channel: MethodChannel) {
                    isFirstTime = false
 
                }else{
-                   errorCount++
+                   errorCount.incrementAndGet()
                }
            }
 
@@ -190,7 +194,7 @@ class UartManager(private val channel: MethodChannel) {
 
                Log.d("RAW DATA", "RAW DATA : $data")
 
-               channel.invokeMethod("onData", mapOf("counter" to internalRCounter , "error" to errorCount))
+               channel.invokeMethod("onData", mapOf("counter" to internalRCounter.get() , "error" to errorCount.get()))
            }
 
        } else if (bytesRead < 0) {
@@ -200,7 +204,7 @@ class UartManager(private val channel: MethodChannel) {
            }
 
        }
-       Thread.sleep(5) // sleep time to handle 1000 packets per second
+       //Thread.sleep(5) // sleep time to handle 1000 packets per second
    }
 
     fun constructPacket(): ByteArray {

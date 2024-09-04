@@ -111,7 +111,7 @@ Java_com_example_uart_1app_UartManager_readUART(JNIEnv *env, jobject thiz,jint f
     return totalBytesRead;*/
 
     // Read with C++ NativeBuffer
-    if (fd1 < 0 || buffer == nullptr || size <= 0) {
+    /*if (fd1 < 0 || buffer == nullptr || size <= 0) {
         return -1;  // Return an error if inputs are invalid
     }
 
@@ -142,6 +142,32 @@ Java_com_example_uart_1app_UartManager_readUART(JNIEnv *env, jobject thiz,jint f
     env->SetByteArrayRegion(buffer, 0, totalBytesRead, nativeBuffer);
 
     delete[] nativeBuffer;  // Free the native buffer
+    return totalBytesRead;*/
+
+    // Testing Code
+    jbyte* globalBuf = env->GetByteArrayElements(buffer, nullptr);
+    int totalBytesRead = 0;
+    int bytesRead = 0;
+
+    while (totalBytesRead < size) {
+        bytesRead = read(fd1, globalBuf + totalBytesRead, size - totalBytesRead);
+
+        if (bytesRead > 0) {
+            totalBytesRead += bytesRead;
+        } else if (bytesRead == 0) {
+            // No data available; potentially end of file or no data yet
+            usleep(100); // Sleep for a short while to avoid busy-waiting
+        } else if (bytesRead == -1 && errno == EAGAIN) {
+            // Non-blocking mode, no data available right now
+            continue;
+        } else {
+            // An error occurred
+            env->ReleaseByteArrayElements(buffer, globalBuf, 0);
+            return -errno;
+        }
+    }
+
+    env->ReleaseByteArrayElements(buffer, globalBuf, 0);
     return totalBytesRead;
 }
 
