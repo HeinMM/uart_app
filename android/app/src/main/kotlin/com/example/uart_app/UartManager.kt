@@ -54,7 +54,6 @@ class UartManager(private val channel: MethodChannel) {
 
     //READ PORT UART DATA
     fun startReadingPort() {
-        /*var readFd = openUART("/dev/ttymxc1", 460800)*/
         if (fd < 0) {
             mainHandler.post {
                 channel.invokeMethod("onError", "Failed to READ UART DATA")
@@ -67,8 +66,6 @@ class UartManager(private val channel: MethodChannel) {
             }
         }
 
-
-
         uartThread =  Thread {
 
             while (isReading) {
@@ -77,15 +74,13 @@ class UartManager(private val channel: MethodChannel) {
             }
 
         }
-        /*uartThread?.priority = Thread.MAX_PRIORITY*/
         uartThread?.start()
     }
 
     //WRITE PORT UART DATA
     fun startWritePort(){
        var count = 0;
-//       while (count<1000){
-        while (count<1){
+        while (count<1){ //adjust write count in here
            if (fd < 0) {
                mainHandler.post {
                    channel.invokeMethod("onError", "Failed to Write UART DATA ")
@@ -104,8 +99,6 @@ class UartManager(private val channel: MethodChannel) {
            }
            count++
        }
-
-        /*uartToCanBridge();*/
 
     }
 
@@ -136,8 +129,6 @@ class UartManager(private val channel: MethodChannel) {
         return value % 10000
     }
 
-
-
     private fun validatePacket(packet: ByteArray): Boolean {
         return packet[0] == 0x7E.toByte() &&
                 packet[1] == 0x0D.toByte() &&
@@ -147,9 +138,6 @@ class UartManager(private val channel: MethodChannel) {
     }
 
    private fun readData(readFd: Int){
-
-      /* var fd = openUART("/dev/ttymxc1", 460800);*/
-
 
        val buffer = ByteArray(17)
 
@@ -161,33 +149,12 @@ class UartManager(private val channel: MethodChannel) {
        if (bytesRead == 17 && validatePacket(buffer)) {
            val data = buffer.toHexString()
 
-//                    val receivedRCounter = (data[8].toString().toInt(16) shl 8) + data[7].toString().toInt(16)
            tempValue = ((buffer[8].toInt() and 0xFF) shl 8) + (buffer[7].toInt() and 0xFF)
            val receivedRCounter = getLastFourDigits(tempValue)
            Log.d("receivedRCounter", "receivedRCounter : $receivedRCounter")
-           Log.d("internalRCounter", "internalRCounter : $internalRCounter")
+           Log.d("internalRCounter", "internalRCounter : ${internalRCounter.get()}")
 
-           if (internalRCounter.get() >= 10000) {
-               controlValue++
-               internalRCounter.set(0)
-               isFirstTime = true
-           }
-
-           if (receivedRCounter == internalRCounter.get()) {
-               internalRCounter.incrementAndGet()
-           } else {
-
-               internalRCounter.set(receivedRCounter + 1)
-               //errorCount++
-
-               if (isFirstTime){
-
-                   isFirstTime = false
-
-               }else{
-                   errorCount.incrementAndGet()
-               }
-           }
+           updateCounter(receivedRCounter)
 
            mainHandler.post {
 
@@ -204,8 +171,31 @@ class UartManager(private val channel: MethodChannel) {
            }
 
        }
-       //Thread.sleep(5) // sleep time to handle 1000 packets per second
    }
+
+    fun updateCounter(receivedRCounter : Int){
+        if (internalRCounter.get() >= 10000) {
+            controlValue++
+            internalRCounter.set(0)
+            isFirstTime = true
+        }
+
+        if (receivedRCounter == internalRCounter.get()) {
+            internalRCounter.incrementAndGet()
+        } else {
+
+            internalRCounter.set(receivedRCounter + 1)
+            //errorCount++
+
+            if (isFirstTime){
+
+                isFirstTime = false
+
+            }else{
+                errorCount.incrementAndGet()
+            }
+        }
+    }
 
     fun constructPacket(): ByteArray {
         // Packet components

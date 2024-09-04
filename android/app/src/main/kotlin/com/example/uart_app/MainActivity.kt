@@ -25,14 +25,12 @@ class MainActivity : FlutterActivity() {
                         }
 
                         "startReading" -> {
-                            //uartManager = UartManager(this)
                             uartManager.startReadingPort()
                         }
 
                         "writeData" -> {
                             Log.d("Testing", "work from write Data")
                             uartManager.startWritePort()
-                            /*result.success(null)*/
                         }
 
                         "stopReading" -> {
