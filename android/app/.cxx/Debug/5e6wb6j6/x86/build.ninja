@@ -56,6 +56,13 @@ build CMakeFiles/native-lib.dir/native-lib.cpp.o: CXX_COMPILER__native-lib_Debug
   OBJECT_DIR = CMakeFiles\native-lib.dir
   OBJECT_FILE_DIR = CMakeFiles\native-lib.dir
 
+build CMakeFiles/native-lib.dir/native-lib-can2.cpp.o: CXX_COMPILER__native-lib_Debug C$:/Users/JASON/Desktop/uart_app/android/app/src/main/cpp/native-lib-can2.cpp || cmake_object_order_depends_target_native-lib
+  DEFINES = -Dnative_lib_EXPORTS
+  DEP_FILE = CMakeFiles\native-lib.dir\native-lib-can2.cpp.o.d
+  FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -mstackrealign -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++11 -O0 -fno-limit-debug-info  -fPIC
+  OBJECT_DIR = CMakeFiles\native-lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\native-lib.dir
+
 
 # =============================================================================
 # Link build statements for SHARED_LIBRARY target native-lib
@@ -64,7 +71,7 @@ build CMakeFiles/native-lib.dir/native-lib.cpp.o: CXX_COMPILER__native-lib_Debug
 #############################################
 # Link the shared library C:\Users\JASON\Desktop\uart_app\build\app\intermediates\cxx\Debug\5e6wb6j6\obj\x86\libnative-lib.so
 
-build C$:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/5e6wb6j6/obj/x86/libnative-lib.so: CXX_SHARED_LIBRARY_LINKER__native-lib_Debug CMakeFiles/native-lib.dir/native-lib.cpp.o | C$:/Users/JASON/AppData/Local/Android/Sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/lib/i686-linux-android/22/liblog.so
+build C$:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/Debug/5e6wb6j6/obj/x86/libnative-lib.so: CXX_SHARED_LIBRARY_LINKER__native-lib_Debug CMakeFiles/native-lib.dir/native-lib.cpp.o CMakeFiles/native-lib.dir/native-lib-can2.cpp.o | C$:/Users/JASON/AppData/Local/Android/Sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/lib/i686-linux-android/22/liblog.so
   LANGUAGE_COMPILE_FLAGS = -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -mstackrealign -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++11 -O0 -fno-limit-debug-info
   LINK_FLAGS = -Wl,--exclude-libs,libgcc.a -Wl,--exclude-libs,libgcc_real.a -Wl,--exclude-libs,libatomic.a -static-libstdc++ -Wl,--build-id -Wl,--fatal-warnings -Wl,--no-undefined -Qunused-arguments
   LINK_LIBRARIES = C:/Users/JASON/AppData/Local/Android/Sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/lib/i686-linux-android/22/liblog.so  -latomic -lm

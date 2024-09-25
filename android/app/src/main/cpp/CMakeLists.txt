@@ -8,6 +8,7 @@ add_library(
         native-lib
         SHARED
         native-lib.cpp
+        native-lib-can2.cpp
 )
 
 # Find the log library

@@ -6,7 +6,11 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private lateinit var uartManager: UartManager
+
+    private lateinit var uartManagerCAN1: UartManagerCAN1
+    private lateinit var uartManagerCAN2: UartManagerCAN2
+
+
     private val CHANNEL = "com.example.uart_app/uart"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -16,26 +20,51 @@ class MainActivity : FlutterActivity() {
             MethodChannel(it, CHANNEL).apply {
                 setMethodCallHandler { call, result ->
                     when (call.method) {
-
-                        "openUart" -> {
-                            val devicePath = call.argument<String>("devicePath")
-                            val baudRate = call.argument<Int>("baudRate") ?: 460800
-                            uartManager = UartManager(this)
-                            uartManager.openUart(devicePath ?: "/dev/ttymxc1", baudRate)
+                    ///////////////////////CAN 1 Channel////////////////////////////////
+                        "can1OpenUart" -> {
+                            val devicePath = call.argument<String>("devicePath")?: "/dev/ttymxc1"
+                            val baudRate = call.argument<Int>("baudRate") ?: 115200
+                            uartManagerCAN1 = UartManagerCAN1(this)
+                            uartManagerCAN1.openUart(devicePath , baudRate)
                         }
 
-                        "startReading" -> {
-                            uartManager.startReadingPort()
+                        "can1StartReading" -> {
+                            uartManagerCAN1.startReadingPort()
+                            uartManagerCAN2.startReadingPort()
                         }
 
-                        "writeData" -> {
+                        "can1WriteData" -> {
                             Log.d("Testing", "work from write Data")
-                            uartManager.startWritePort()
+                            uartManagerCAN1.startWritePort()
                         }
 
-                        "stopReading" -> {
+                        "can1StopReading" -> {
 
-                            uartManager.stopReading()
+                            uartManagerCAN1.stopReading()
+                            result.success(null)
+                        }
+
+                        ///////////////////////CAN 2 Channel////////////////////////////////
+
+                        "can2OpenUart" -> {
+                            val devicePath = call.argument<String>("devicePath")?: "/dev/ttymxc2"
+                            val baudRate = call.argument<Int>("baudRate") ?: 460800
+                            uartManagerCAN2 = UartManagerCAN2(this)
+                            uartManagerCAN2.openUart(devicePath , baudRate)
+                        }
+
+                        "can2StartReading" -> {
+                            uartManagerCAN2.startReadingPort()
+                        }
+
+                        "can2WriteData" -> {
+                            Log.d("Testing", "work from write Data")
+                            uartManagerCAN2.startWritePort()
+                        }
+
+                        "can2StopReading" -> {
+
+                            uartManagerCAN2.stopReading()
                             result.success(null)
                         }
 
