@@ -1,5 +1,6 @@
 // ignore_for_file: prefer_is_empty, prefer_final_fields, avoid_print, avoid_function_literals_in_foreach_calls, prefer_interpolation_to_compose_strings, unused_field
 import 'dart:async';
+import 'dart:ffi';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -36,11 +37,21 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 
+  Timer? _can1Timer;
+  Timer? _can2Timer;
+
+  final StreamController<int> _can1StreamController = StreamController<int>();
+  final StreamController<String> _can1ErrorStreamController = StreamController<String>();
+  final StreamController<int> _can2StreamController = StreamController<int>();
+  final StreamController<String> _can2ErrorStreamController = StreamController<String>();
+
+
   static const platform = MethodChannel('com.example.uart_app/uart');
 
 
   ////////////////CAN 1 variable/////////////////////////
-  String can1InternalRCounter = "0";
+  int can1InternalRCounter = 0;
+
   String can1Error = "0";
   String can1Error2 = "0";
   bool can1IsOpenPort = false;
@@ -51,7 +62,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
   ////////////////CAN 2 variable/////////////////////////
-  String can2InternalRCounter = "0";
+  int can2InternalRCounter = 0;
+
   String can2Error = "0";
   String can2Error2 = "0";
  bool can2IsStart = false;
@@ -65,16 +77,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-
   }
-
- /* void _startCounter() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if(can1IsStart&&can1IsOpenPort){
-        can1StartReadingUart();
-      }
-    });
-  }*/
 
   // Can 1 OPEN port
   Future<void> can1OpenUart() async {
@@ -116,35 +119,37 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> can1StartReadingUart() async {
 
     try {
+      Timer.periodic(const Duration(milliseconds: 500), (timer) {
       platform.setMethodCallHandler((call) async {
         if (call.method == "can1OnData") {
+
+            can1InternalRCounter = call.arguments['counter'];
+            _can1StreamController.sink.add(can1InternalRCounter);
+
+            can1Error = call.arguments['error'].toString();
+            _can1ErrorStreamController.sink.add(can1Error);
+
+          can1IsStart = true;
+
+
+        }
+        if (call.method == "can1OnError") {
+
               setState(() {
-                can1InternalRCounter = call.arguments['counter'].toString();
-                can1Error = call.arguments['error'].toString();
-
-                can1IsStart = true;
-              });
-
-
-        } else if (call.method == "can1OnError") {
-
-            Future.microtask((){
-              setState(() {
-                can1InternalRCounter = "Error : ${call.arguments}";
+                can1InternalRCounter = 0;
                 can1Error = "Something is wrong in error counter";
 
                 can1IsStart = false;
               });
-            });
-
         }
+      });
       });
       await platform.invokeMethod('can1StartReading', {'devicePath': '/dev/ttymxc1', 'baudRate': 115200});
 
     } on PlatformException catch (e) {
      Future.microtask((){
        setState(() {
-         can1InternalRCounter = "Failed to start UART: ${e.message}";
+         can1InternalRCounter = 0;
          can1Error2 = "";
        });
      });
@@ -161,7 +166,7 @@ class _MyHomePageState extends State<MyHomePage> {
     } on PlatformException catch (e) {
 
         setState(() {
-          can1InternalRCounter = "Failed to start UART: ${e.message}";
+          can1InternalRCounter = 0;
           can1Error2 = "";
         });
 
@@ -192,6 +197,8 @@ class _MyHomePageState extends State<MyHomePage> {
       });
 
       await platform.invokeMethod('can1StopReading');
+
+      _can1StreamController.close();
 
     } on PlatformException catch (e) {
 
@@ -242,37 +249,37 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> can2StartReadingUart() async {
 
     try {
-      platform.setMethodCallHandler((call) async {
-        if (call.method == "onData") {
+      _can2Timer ??= Timer.periodic(const Duration(milliseconds: 500), (timer) {  //if _can2Timer is null
+          platform.setMethodCallHandler((call) async {
+            if (call.method == "onData") {
 
-            Future.microtask((){
-              setState(() {
-                can2InternalRCounter = call.arguments['counter'].toString();
-                can2Error = call.arguments['error'].toString();
+              can2InternalRCounter = call.arguments['counter'];
+              _can2StreamController.sink.add(can2InternalRCounter);
 
-                can2IsStart = true;
+              can2Error = call.arguments['error'].toString();
+              _can2ErrorStreamController.sink.add(can2Error);
+
+              can2IsStart = true;
+
+
+            } else if (call.method == "onError") {
+              Future.microtask((){
+                setState(() {
+                  can2InternalRCounter = 0;
+                  can2Error = "Something is wrong in error counter";
+
+                  can2IsStart = false;
+
+                });
               });
-            });
-
-
-
-        } else if (call.method == "onError") {
-          Future.microtask((){
-            setState(() {
-              can2InternalRCounter = "Error : ${call.arguments}";
-              can2Error = "Something is wrong in error counter";
-
-              can2IsStart = false;
-
-            });
+            }
           });
-        }
-      });
+        });
       await platform.invokeMethod('can2StartReading', {'devicePath': '/dev/ttymxc2', 'baudRate': 460800});
 
     } on PlatformException catch (e) {
       setState(() {
-        can2InternalRCounter = "Failed to start UART: ${e.message}";
+        can2InternalRCounter = 0;
         can2Error2 = "";
       });
     }
@@ -287,7 +294,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     } on PlatformException catch (e) {
       setState(() {
-        can2InternalRCounter = "Failed to start UART: ${e.message}";
+        can2InternalRCounter = 0;
         can2Error2 = "";
       });
     }
@@ -317,6 +324,7 @@ class _MyHomePageState extends State<MyHomePage> {
       });
 
       await platform.invokeMethod('can2StopReading');
+      _can2StreamController.close();
 
     } on PlatformException catch (e) {
 
@@ -332,6 +340,8 @@ class _MyHomePageState extends State<MyHomePage> {
   void dispose() {
     platform.invokeMethod('can1StopReading');
     platform.invokeMethod('can2StopReading');
+    _can1StreamController.close();
+    _can2StreamController.close();
     super.dispose();
   }
 
@@ -354,15 +364,9 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            /*Padding(padding: EdgeInsets.all(10),child:
-            TextField(
-              decoration: InputDecoration(
-                  prefixText: '/dev/ttymxc1',
-                  icon: Icon(Icons.folder)
-              ),
-            )
-              ,),*/
-        Padding(padding: EdgeInsets.all(20),
+
+
+        Padding(padding: const EdgeInsets.all(20),
         child:
 
             Card( // CAN 1 CARD
@@ -373,17 +377,12 @@ class _MyHomePageState extends State<MyHomePage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
 
-
-
-
                   const Text('CAN 1',
                     style: TextStyle(
                         fontSize: 35.0,
                         color: Colors.white
                     ),
                   ),
-
-
 
                   const SizedBox(height: 30,),
                   const Text('                                                                                '
@@ -398,20 +397,47 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ),
                   const SizedBox(height: 10,),
-                  Text('Internal Counter: $can1InternalRCounter',
-                    overflow: TextOverflow.ellipsis,
-                    style:  const TextStyle(
-                      fontSize: 20.0,
-                        color: Colors.white
+                  /*Center(
+                    child: StreamBuilder<int>(
+                      stream: _can1StreamController.stream,
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Text("Counter: 0",overflow: TextOverflow.ellipsis,
+                            style:   TextStyle(
+                                fontSize: 20.0,
+                                color: Colors.white
+                            ),);
+                        } else {
+                          return Text("Counter: ${snapshot.data}",overflow: TextOverflow.ellipsis,
+                            style:  const TextStyle(
+                                fontSize: 20.0,
+                                color: Colors.white
+                            ),);
+                        }
+                      },
                     ),
-                  ),
+                  ),*/
                   const SizedBox(height: 10),
-                  Text('Error count: $can1Error',
-                    style: const TextStyle(
-                      fontSize: 18.0,
-                        color: Colors.white
+                  /*Center(
+                    child: StreamBuilder<String>(
+                      stream: _can1ErrorStreamController.stream,
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Text("Error: 0",overflow: TextOverflow.ellipsis,
+                            style:   TextStyle(
+                                fontSize: 20.0,
+                                color: Colors.white
+                            ),);
+                        } else {
+                          return Text("Error: ${snapshot.data}",overflow: TextOverflow.ellipsis,
+                            style:  const TextStyle(
+                                fontSize: 20.0,
+                                color: Colors.white
+                            ),);
+                        }
+                      },
                     ),
-                  ),
+                  ),*/
 
                   const SizedBox(height: 10),
 
@@ -509,22 +535,49 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
 
                     const SizedBox(height: 10,),
-                    Text('Internal Counter: $can2InternalRCounter',
-                      overflow: TextOverflow.ellipsis,
-                      style:  const TextStyle(
-                          fontSize: 20.0,
-                          color: Colors.white
+                    /*Center(
+                      child: StreamBuilder<int>(
+                        stream: _can2StreamController.stream,
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return const Text("Counter: 0",overflow: TextOverflow.ellipsis,
+                              style:   TextStyle(
+                                  fontSize: 20.0,
+                                  color: Colors.white
+                              ),);
+                          } else {
+                            return Text("Counter: ${snapshot.data}",overflow: TextOverflow.ellipsis,
+                              style:  const TextStyle(
+                                  fontSize: 20.0,
+                                  color: Colors.white
+                              ),);
+                          }
+                        },
                       ),
-                    ),
+                    ),*/
                     const SizedBox(height: 10),
-                    Text('Error count: $can2Error',
-                      style: const TextStyle(
-                          fontSize: 18.0,
-                          color: Colors.white
+                    /*Center(
+                      child: StreamBuilder<String>(
+                        stream: _can2ErrorStreamController.stream,
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return const Text("Error: 0",overflow: TextOverflow.ellipsis,
+                              style:   TextStyle(
+                                  fontSize: 20.0,
+                                  color: Colors.white
+                              ),);
+                          } else {
+                            return Text("Error: ${snapshot.data}",overflow: TextOverflow.ellipsis,
+                              style:  const TextStyle(
+                                  fontSize: 20.0,
+                                  color: Colors.white
+                              ),);
+                          }
+                        },
                       ),
-                    ),
+                    ),*/
 
-                    const SizedBox(height: 40),
+
 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
