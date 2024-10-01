@@ -1,0 +1,6 @@
+# ninja log v5
+0	644	7493880101427450	CMakeFiles/native-lib.dir/native-lib-can2.cpp.o	7eff8cf87fb96bb3
+6	648	7493880101448198	CMakeFiles/native-lib.dir/native-lib.cpp.o	3b216ca8ecd97ded
+649	754	7493880102577181	C:/Users/JASON/Desktop/uart_app/build/app/intermediates/cxx/RelWithDebInfo/5w5u501h/obj/armeabi-v7a/libnative-lib.so	e58f47ea86f5fa6
+0	14	0	clean	d2c85ad1949ce46b
+0	8	0	clean	d2c85ad1949ce46b

@@ -5,6 +5,7 @@ import android.os.Looper
 import android.util.Log
 import io.flutter.plugin.common.MethodChannel
 import java.util.concurrent.atomic.AtomicInteger
+import java.lang.Thread
 
 
 class UartManagerCAN1(private val channel: MethodChannel) {
@@ -34,6 +35,13 @@ class UartManagerCAN1(private val channel: MethodChannel) {
     private var controlValue = 0
     private var tempValue = 0
     @Volatile private var fd = -1
+
+    private var incompleteData = ByteArray(0)
+
+    private val bufferSize = 256  // Define the circular buffer size
+    private var circularBuffer = ByteArray(bufferSize)
+    private var readPointer = 0
+    private var writePointer = 0
 
     //OPEN PORT UART
     @Synchronized
@@ -75,6 +83,7 @@ class UartManagerCAN1(private val channel: MethodChannel) {
     }
 
     //READ PORT UART DATA
+    @Synchronized
     fun startReadingPort() {
 
         if (fd < 0) {
@@ -91,35 +100,95 @@ class UartManagerCAN1(private val channel: MethodChannel) {
 
         uartThread =  Thread {
 
-            while (isReading) {
-                can1ReadData(fd)
+            try {
+                while (isReading && !Thread.currentThread().isInterrupted) {
+                    can1ReadData(fd)
+                    //Thread.sleep(50)
+                }
+            } catch (e: InterruptedException){
+                Log.d("UART", "Thread interrupted, stopping reading.")
+                Thread.currentThread().interrupt()
             }
 
         }
         uartThread?.start()
     }
 
-    private fun can1ReadData(readFd: Int){
+     private fun can1ReadData(readFd: Int){
 
-        val buffer = ByteArray(17)
+         // Temporary buffer for reading incoming data
+         val tempBuffer = ByteArray(119)  // Larger buffer to temporarily hold UART data
+         val bytesRead = can1ReadUART(readFd, tempBuffer, tempBuffer.size)  // Read data from UART
 
-        val bytesRead = can1ReadUART(readFd, buffer, buffer.size)
+         if (bytesRead > 0) {
 
+             // Write the new data into the circular buffer
+             for (i in 0 until bytesRead) {
+                 circularBuffer[writePointer] = tempBuffer[i]
+                 writePointer = (writePointer + 1) % bufferSize  // Wrap around using modulo
+                 // Handle potential buffer overflow: If the buffer is full, move the read pointer
+                 if (writePointer == readPointer) {
+                     readPointer = (readPointer + 1) % bufferSize  // Overwrite the oldest data
+                 }
+             }
 
+             // Check for complete packets in the circular buffer
+             while ((writePointer - readPointer + bufferSize) % bufferSize >= 17) { // Ensure 17 bytes available
+                 // Check if there's a valid packet starting from readPointer
+                 if (circularBuffer[readPointer] == 0x02.toByte() &&
+                     circularBuffer[(readPointer + 16) % bufferSize] == 0x04.toByte()) {
 
-         if(bytesRead == 17 && can1ValidatePacket(buffer)){
+                     // Extract the packet
+                     val packet = ByteArray(17)
+                     for (i in 0 until 17) {
+                         packet[i] = circularBuffer[(readPointer + i) % bufferSize]
+                     }
 
-            can1Reader(readFd,buffer,bytesRead ) // CAN 1 </dev/ttymxc1>
+                     // Process the complete packet
+                     processPacket(packet)
 
+                     // Move the readPointer forward after processing a full packet
+                     readPointer = (readPointer + 17) % bufferSize
+                 } else {
+                     // If no valid packet, move the readPointer forward
+                     readPointer = (readPointer + 1) % bufferSize
+                 }
+             }
+         }
+
+    }
+
+    private fun processPacket(packet: ByteArray) {
+        if (can1ValidatePacket(packet)) {
+            can1Reader(fd, packet, packet.size)
         }
-        if (bytesRead < 0) {
+    }
 
-            mainHandler.post {
-                channel.invokeMethod("can1OnError", "Read error: $bytesRead")
+
+
+    private fun updateCounter(receivedRCounter : Int){
+        if (internalRCounter.get() >= 10000) {
+            controlValue++
+            internalRCounter.set(0)
+            isFirstTime = true
+        }
+
+        if (receivedRCounter == internalRCounter.get()) {
+            internalRCounter.incrementAndGet()
+        } else {
+
+            internalRCounter.set(receivedRCounter + 1)
+            //errorCount++
+
+            if (isFirstTime){
+
+                isFirstTime = false
+
+            }else{
+                errorCount.incrementAndGet()
+
             }
-
         }
-
     }
 
     private fun can1ValidatePacket(packet: ByteArray): Boolean {
@@ -131,7 +200,7 @@ class UartManagerCAN1(private val channel: MethodChannel) {
     }
 
 
-    private fun can1Reader(readFd: Int, buffer: ByteArray, bytesRead: Int){
+     private fun can1Reader(readFd: Int, buffer: ByteArray, bytesRead: Int){
 
         Log.d("Can1Testing", "Can 1 is working")
 
@@ -210,52 +279,7 @@ class UartManagerCAN1(private val channel: MethodChannel) {
 
 
 
-    private fun updateCounter(receivedRCounter : Int){
-        if (internalRCounter.get() >= 10000) {
-            controlValue++
-            internalRCounter.set(0)
-            isFirstTime = true
-        }
 
-        if (receivedRCounter == internalRCounter.get()) {
-            internalRCounter.incrementAndGet()
-        } else {
-
-            internalRCounter.set(receivedRCounter + 1)
-            //errorCount++
-
-            if (isFirstTime){
-
-                isFirstTime = false
-
-            }else{
-                errorCount.incrementAndGet()
-
-            }
-        }
-    }
-
-    /*fun constructPacket(): ByteArray {
-        // Packet components
-        val startOfPacket: Byte = 0x7E
-        val length: Byte = 0x0D.toByte() // length
-        val canId: ByteArray = byteArrayOf(0x18, 0xF0.toByte(), 0x05, 0x03)
-//        val canId: ByteArray = byteArrayOf(0x0F, 0x00, 0x00, 0xFF.toByte())
-        val dlc: Byte = 0x08
-        val data: ByteArray = byteArrayOf(0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
-        val endOfPacket: Byte = 0xAA.toByte()
-        val endOfPacket2: Byte = 0x7F
-
-        // Construct the packet
-        return byteArrayOf(
-            startOfPacket,
-            length,
-            *canId,
-            dlc,
-            *data,
-            endOfPacket, endOfPacket2
-        )
-    }*/
 
     private fun constructPacket(): ByteArray {
         // Packet components

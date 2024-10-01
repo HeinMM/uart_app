@@ -30,7 +30,8 @@ class MainActivity : FlutterActivity() {
 
                         "can1StartReading" -> {
                             uartManagerCAN1.startReadingPort()
-                            uartManagerCAN2.startReadingPort()
+                            Log.d("MainActivity", "can1OpenUart called")
+
                         }
 
                         "can1WriteData" -> {

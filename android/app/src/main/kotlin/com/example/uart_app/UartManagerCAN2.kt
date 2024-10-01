@@ -38,6 +38,11 @@ class UartManagerCAN2(private val channel: MethodChannel) {
 
     private var incompleteData = ByteArray(0)
 
+    private val bufferSize = 256  // Define the circular buffer size
+    private var circularBuffer = ByteArray(bufferSize)
+    private var readPointer = 0
+    private var writePointer = 0
+
     //OPEN PORT UART
     @Synchronized
     fun openUart(devicePath: String, baudRate: Int){
@@ -46,12 +51,12 @@ class UartManagerCAN2(private val channel: MethodChannel) {
         Log.d("fd value", "fd value: $fd")
         if (fd <= 0) {
             mainHandler.post {
-                channel.invokeMethod("onError", "Failed to open UART")
+                channel.invokeMethod("can2OnError", "Failed to open UART")
             }
 
         }else{
             mainHandler.post {
-                channel.invokeMethod("info", "Open UART port successfully")
+                channel.invokeMethod("can2Info", "Open UART port successfully")
 
             }
 
@@ -76,17 +81,18 @@ class UartManagerCAN2(private val channel: MethodChannel) {
     }
 
     //READ PORT UART DATA
+    @Synchronized
     fun startReadingPort() {
-        Log.d("Done", "This is testing done")
+
         if (fd < 0) {
             mainHandler.post {
-                channel.invokeMethod("onError", "Failed to READ UART DATA")
+                channel.invokeMethod("can2OnError", "Failed to READ UART DATA")
             }
             return
         }
         else {
             mainHandler.post {
-                channel.invokeMethod("info", "Read UART port successfully")
+                channel.invokeMethod("can2Info", "Read UART port successfully")
             }
         }
 
@@ -106,106 +112,52 @@ class UartManagerCAN2(private val channel: MethodChannel) {
         uartThread?.start()
     }
 
-    /*private fun readData(readFd: Int){
 
-        val buffer = ByteArray(256)
-
-        val bytesRead = can2ReadUART(readFd, buffer, buffer.size)
-
-        if (bytesRead > 0) {
-            // Log the raw data before processing
-            Log.d("RAW UART DATA", "Received: ${buffer.take(bytesRead).toByteArray().toHexString()}")
-        }
-
-
-
-        if (bytesRead == 17 && can2ValidatePacket(buffer)) {
-
-            can2Reader(readFd,buffer,bytesRead ) // CAN 2 </dev/ttymxc2>
-
-        }
-        if (bytesRead < 0) {
-
-            val errorMsg = "Error during UART read: $bytesRead"
-            Log.e("UART", errorMsg)
-
-            mainHandler.post {
-                channel.invokeMethod("onError", "Read error: $bytesRead")
-            }
-
-        }
-
-    }*/
-
-    /*private fun readData(readFd: Int) {
-        val buffer = ByteArray(1020) // Larger buffer to capture more data
-        val bytesRead = can2ReadUART(readFd, buffer, buffer.size)
-        Log.d("Testing UART DATA", "bytesRead = ${bytesRead}")
-
-        if (bytesRead > 0) {
-            Log.d("RAW UART DATA", "Received: ${buffer.take(bytesRead).toByteArray().toHexString()}")
-            var i = 0
-            while (i + 17 <= bytesRead) {
-                // Find the start of a packet (0x7E)
-                if (buffer[i] == 0x7E.toByte() && i + 16 < bytesRead) {
-                    val packet = buffer.copyOfRange(i, i + 17)
-
-                    // Validate and process the packet
-                    if (can2ValidatePacket(packet)) {
-                        Log.d("RAW UART DATA", "Received packet: ${packet.toHexString()}")
-                        can2Reader(readFd, packet, packet.size)
-                    } else {
-                        Log.d("UART ERROR", "Invalid packet")
-                        mainHandler.post {
-                            channel.invokeMethod("onError", "Invalid packet")
-                        }
-                    }
-
-                    // Move to the next packet
-                    i += 17
-                } else {
-                    // Skip to the next byte if no packet start found
-                    i++
-                }
-            }
-        } else if (bytesRead < 0) {
-            Log.d("UART ERROR", "Read error: $bytesRead")
-            mainHandler.post {
-                channel.invokeMethod("onError", "Read error: $bytesRead")
-            }
-        }
-    }*/
 
     private fun readData(readFd: Int) {
-        val buffer = ByteArray(119) // Larger buffer size
-        val bytesRead = can2ReadUART(readFd, buffer, buffer.size)
+        // Temporary buffer for reading incoming data
+        val tempBuffer = ByteArray(119)  // Larger buffer to temporarily hold UART data
+        /*val bytesRead = can2ReadUART(readFd, tempBuffer, tempBuffer.size) */ // Read data from UART
+        val bytesRead = can2ReadUART(readFd, tempBuffer, tempBuffer.size)
 
 
+
+        Log.d("Check","fd value " + readFd)
 
         if (bytesRead > 0) {
-            Log.d("RAW UART DATA", "Received: ${buffer.take(bytesRead).toByteArray().toHexString()}")
-            // Combine the previous incomplete data with the newly read data
-            val newData = incompleteData + buffer.copyOf(bytesRead)
 
-            // Process complete packets from the combined data
-            var currentIndex = 0
-            while (currentIndex <= newData.size - 17) {  // 17 is the packet size
-                if (newData[currentIndex] == 0x7E.toByte() && newData[currentIndex + 16] == 0x7F.toByte()) {
-                    // Extract the full packet
-                    val packet = newData.copyOfRange(currentIndex, currentIndex + 17)
+            // Write the new data into the circular buffer
+            for (i in 0 until bytesRead) {
+                circularBuffer[writePointer] = tempBuffer[i]
+                writePointer = (writePointer + 1) % bufferSize  // Wrap around using modulo
+                // Handle potential buffer overflow: If the buffer is full, move the read pointer
+                if (writePointer == readPointer) {
+                    readPointer = (readPointer + 1) % bufferSize  // Overwrite the oldest data
+                }
+            }
+
+            // Check for complete packets in the circular buffer
+            while ((writePointer - readPointer + bufferSize) % bufferSize >= 17) { // Ensure 17 bytes available
+                // Check if there's a valid packet starting from readPointer
+                if (circularBuffer[readPointer] == 0x7E.toByte() &&
+                    circularBuffer[(readPointer + 16) % bufferSize] == 0x7F.toByte()) {
+
+                    // Extract the packet
+                    val packet = ByteArray(17)
+                    for (i in 0 until 17) {
+                        packet[i] = circularBuffer[(readPointer + i) % bufferSize]
+                    }
 
                     // Process the complete packet
                     processPacket(packet)
 
-                    // Move to the next potential packet
-                    currentIndex += 17
+                    // Move the readPointer forward after processing a full packet
+                    readPointer = (readPointer + 17) % bufferSize
                 } else {
-                    currentIndex++
+                    // If no valid packet, move the readPointer forward
+                    readPointer = (readPointer + 1) % bufferSize
                 }
             }
-
-            // Store any leftover (incomplete) data for the next read
-            incompleteData = newData.copyOfRange(currentIndex, newData.size)
         }
     }
 
@@ -215,6 +167,10 @@ class UartManagerCAN2(private val channel: MethodChannel) {
         }
     }
 
+    private fun can2GetLastFourDigits(value: Int): Int {
+        return value % 10000
+    }
+
 
 
     private fun can2Reader(readFd: Int, buffer: ByteArray, bytesRead: Int){
@@ -222,11 +178,9 @@ class UartManagerCAN2(private val channel: MethodChannel) {
         Log.d("Can2Testing", "Can 2 is working")
 
         /*if (true) {*/
-        val data = buffer.toHexString()
 
         tempValue = ((buffer[8].toInt() and 0xFF) shl 8) + (buffer[7].toInt() and 0xFF)
-        val receivedRCounter = tempValue
-            //val receivedRCounter = getLastFourDigits(tempValue)
+            var receivedRCounter = can2GetLastFourDigits(tempValue)
         Log.d("receivedRCounter", "receivedRCounter : $receivedRCounter")
         Log.d("internalRCounter", "internalRCounter : ${internalRCounter.get()}")
         Log.d("eError Count", "ErrorCounter : ${errorCount.get()}")
@@ -237,7 +191,7 @@ class UartManagerCAN2(private val channel: MethodChannel) {
 
             Log.d("RAW DATA", "CAN 2 RAW DATA : ${buffer.toHexString()}")
 
-            channel.invokeMethod("onData", mapOf("counter" to internalRCounter.get() , "error" to errorCount.get()))
+            channel.invokeMethod("can2OnData", mapOf("counter" to internalRCounter.get() , "error" to errorCount.get()))
         }
 
 
@@ -264,7 +218,7 @@ class UartManagerCAN2(private val channel: MethodChannel) {
 
             }else{
                 errorCount.incrementAndGet()
-                isReading =  false
+                // isReading =  false
             }
         }
     }
@@ -285,7 +239,7 @@ class UartManagerCAN2(private val channel: MethodChannel) {
         while (count<1){ //adjust write count in here
             if (fd < 0) {
                 mainHandler.post {
-                    channel.invokeMethod("onError", "Failed to Write UART DATA ")
+                    channel.invokeMethod("can2OnError", "Failed to Write UART DATA ")
                 }
                 return
             }
@@ -311,14 +265,6 @@ class UartManagerCAN2(private val channel: MethodChannel) {
             String.format("%02X", byte)
         }
     }
-
-    /*private fun getLastFourDigits(value: Int): Int {
-        return value % 10000
-    }*/
-
-
-
-
 
 
 

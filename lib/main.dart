@@ -1,6 +1,5 @@
 // ignore_for_file: prefer_is_empty, prefer_final_fields, avoid_print, avoid_function_literals_in_foreach_calls, prefer_interpolation_to_compose_strings, unused_field
 import 'dart:async';
-import 'dart:ffi';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -77,6 +76,50 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    print("Initializing Method Channel Handler");
+    _initializeMethodChannelHandler();
+  }
+
+  void _initializeMethodChannelHandler() {
+    const platform = MethodChannel('com.example.uart_app/uart');
+    Timer.periodic(const Duration(milliseconds: 100), (timer) async {
+      platform.setMethodCallHandler((call) async {
+        switch (call.method) {
+          case "can1OnData":
+            can1InternalRCounter = call.arguments['counter'];
+            _can1StreamController.sink.add(can1InternalRCounter);
+            can1Error = call.arguments['error'].toString();
+            _can1ErrorStreamController.sink.add(can1Error);
+            break;
+
+          case "can1OnError":
+            setState(() {
+              can1Error = "Error occurred in CAN 1";
+              can1InternalRCounter = 0;
+              can1IsStart = false;
+            });
+            break;
+
+          case "can2OnData":
+            can2InternalRCounter = call.arguments['counter'];
+            _can2StreamController.sink.add(can2InternalRCounter);
+            can2Error = call.arguments['error'].toString();
+            _can2ErrorStreamController.sink.add(can2Error);
+            break;
+
+          case "can2OnError":
+            setState(() {
+              can2Error = "Error occurred in CAN 2";
+              can2InternalRCounter = 0;
+              can2IsStart = false;
+            });
+            break;
+
+          default:
+            break;
+        }
+      });
+    });
   }
 
   // Can 1 OPEN port
@@ -119,32 +162,14 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> can1StartReadingUart() async {
 
     try {
-      Timer.periodic(const Duration(milliseconds: 500), (timer) {
-      platform.setMethodCallHandler((call) async {
-        if (call.method == "can1OnData") {
+      //_can1Timer=Timer.periodic(const Duration(milliseconds: 100), (timer) async {
 
-            can1InternalRCounter = call.arguments['counter'];
-            _can1StreamController.sink.add(can1InternalRCounter);
+        await platform.invokeMethod('can1StartReading', {'devicePath': '/dev/ttymxc1', 'baudRate': 115200});
+      //});
 
-            can1Error = call.arguments['error'].toString();
-            _can1ErrorStreamController.sink.add(can1Error);
-
-          can1IsStart = true;
-
-
-        }
-        if (call.method == "can1OnError") {
-
-              setState(() {
-                can1InternalRCounter = 0;
-                can1Error = "Something is wrong in error counter";
-
-                can1IsStart = false;
-              });
-        }
+      setState(() {
+        can1IsStart = true;
       });
-      });
-      await platform.invokeMethod('can1StartReading', {'devicePath': '/dev/ttymxc1', 'baudRate': 115200});
 
     } on PlatformException catch (e) {
      Future.microtask((){
@@ -249,33 +274,14 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> can2StartReadingUart() async {
 
     try {
-      _can2Timer ??= Timer.periodic(const Duration(milliseconds: 500), (timer) {  //if _can2Timer is null
-          platform.setMethodCallHandler((call) async {
-            if (call.method == "onData") {
+      //_can2Timer ??= Timer.periodic(const Duration(milliseconds: 100), (timer) async {  //if _can2Timer is null
+        await platform.invokeMethod('can2StartReading', {'devicePath': '/dev/ttymxc2', 'baudRate': 460800});
+        //});
 
-              can2InternalRCounter = call.arguments['counter'];
-              _can2StreamController.sink.add(can2InternalRCounter);
+      setState(() {
+        can2IsStart = true;
+      });
 
-              can2Error = call.arguments['error'].toString();
-              _can2ErrorStreamController.sink.add(can2Error);
-
-              can2IsStart = true;
-
-
-            } else if (call.method == "onError") {
-              Future.microtask((){
-                setState(() {
-                  can2InternalRCounter = 0;
-                  can2Error = "Something is wrong in error counter";
-
-                  can2IsStart = false;
-
-                });
-              });
-            }
-          });
-        });
-      await platform.invokeMethod('can2StartReading', {'devicePath': '/dev/ttymxc2', 'baudRate': 460800});
 
     } on PlatformException catch (e) {
       setState(() {
@@ -397,7 +403,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ),
                   const SizedBox(height: 10,),
-                  /*Center(
+                  Center(
                     child: StreamBuilder<int>(
                       stream: _can1StreamController.stream,
                       builder: (context, snapshot) {
@@ -416,9 +422,9 @@ class _MyHomePageState extends State<MyHomePage> {
                         }
                       },
                     ),
-                  ),*/
+                  ),
                   const SizedBox(height: 10),
-                  /*Center(
+                  Center(
                     child: StreamBuilder<String>(
                       stream: _can1ErrorStreamController.stream,
                       builder: (context, snapshot) {
@@ -437,7 +443,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         }
                       },
                     ),
-                  ),*/
+                  ),
 
                   const SizedBox(height: 10),
 
@@ -535,7 +541,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
 
                     const SizedBox(height: 10,),
-                    /*Center(
+                    Center(
                       child: StreamBuilder<int>(
                         stream: _can2StreamController.stream,
                         builder: (context, snapshot) {
@@ -554,9 +560,9 @@ class _MyHomePageState extends State<MyHomePage> {
                           }
                         },
                       ),
-                    ),*/
+                    ),
                     const SizedBox(height: 10),
-                    /*Center(
+                    Center(
                       child: StreamBuilder<String>(
                         stream: _can2ErrorStreamController.stream,
                         builder: (context, snapshot) {
@@ -575,14 +581,14 @@ class _MyHomePageState extends State<MyHomePage> {
                           }
                         },
                       ),
-                    ),*/
-
-
+                    ),
 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         can2IsStart||can2IsOpenPort ? const SizedBox() : ElevatedButton(child: const Text('Open'), onPressed: (){
+
+
 
                           can2OpenUart();
 

@@ -9,16 +9,17 @@
 #include <cstdint>
 #include <android/log.h>
 #include <time.h>
+#include <future>
 
-bool isReading = true;
-std::mutex uartMutex;
+
+std::mutex can1UartMutex;
 jint fd;
 
 
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManagerCAN1_sendAPPStateMessage(JNIEnv *env, jobject obj, jint fd2) {
-    std::lock_guard<std::mutex> lock(uartMutex);
+    std::lock_guard<std::mutex> lock(can1UartMutex);
 
     // Construct the message
     unsigned char message[17] = {
@@ -54,10 +55,35 @@ Java_com_example_uart_1app_UartManagerCAN1_sendAPPStateMessage(JNIEnv *env, jobj
 // Function to convert jint baudRate to termios-compatible speed_t
  speed_t getBaudRate(jint baudRate) {
     switch (baudRate) {
+        case 110:
+            return B110;
+        case 300:
+            return B300;
+        case 600:
+            return B600;
+        case 1200:
+            return B1200;
+        case 2400:
+            return B2400;
+        case 4800:
+            return B4800;
+        case 9600:
+            return B9600;
+        case 19200:
+            return B19200;
+        case 38400:
+            return B38400;
+        case 57600:
+            return B57600;
+
         case 115200:
             return B115200;
+        case 230400:
+            return B230400;
         case 460800:
             return B460800;
+        case 921600:
+            return B921600;
             // Add more cases for different baud rates as needed
         default:
             return -1;  // Invalid baud rate
@@ -67,13 +93,14 @@ Java_com_example_uart_1app_UartManagerCAN1_sendAPPStateMessage(JNIEnv *env, jobj
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManagerCAN1_can1OpenUART(JNIEnv *env, jobject thiz, jstring devicePath, jint baudRate) {
-    isReading = true;
+
     const char *path = env->GetStringUTFChars(devicePath, nullptr);
      /*int fd = open(path, O_RDWR | O_NOCTTY | O_NONBLOCK  );*/
      fd = open(path, O_RDWR  | O_NOCTTY  );
     env->ReleaseStringUTFChars(devicePath, path);
     if (fd < 0) {
-        __android_log_print(ANDROID_LOG_ERROR, "UART", "Failed to open UART device: %s and fd value less than 0", strerror(errno));
+        __android_log_print(ANDROID_LOG_ERROR, "UART", "Failed to open UART device: %s and fd value less than 0",
+                            strerror(errno));
         return 0;
     }
 
@@ -85,7 +112,7 @@ Java_com_example_uart_1app_UartManagerCAN1_can1OpenUART(JNIEnv *env, jobject thi
     }
 
     // Set baud rate B460800 \\ B115200
-    /*if (cfsetispeed(&options, getBaudRate(baudRate)) < 0 || cfsetospeed(&options, getBaudRate(baudRate)) < 0) {*/
+
     if (cfsetispeed(&options, getBaudRate(baudRate)) < 0 || cfsetospeed(&options, getBaudRate(baudRate)) < 0) {
         __android_log_print(ANDROID_LOG_ERROR, "UART", "Failed to set baud rate: %s", strerror(errno));
         close(fd);
@@ -127,43 +154,49 @@ void sleepInMicroseconds(int microseconds) {
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManagerCAN1_can1ReadUART(JNIEnv *env, jobject thiz, jint fd1, jbyteArray buffer, jint size) {
 
-    jbyte* globalBuf = env->GetByteArrayElements(buffer, nullptr);
-    int totalBytesRead = 0;
-    int bytesRead = 0;
 
-    while (totalBytesRead < size) {
 
-        //sleepInMicroseconds(100000);  // Sleep for 10000 microseconds (10 millisecond)
+        std::lock_guard<std::mutex> lock(can1UartMutex);
 
-        bytesRead = read(fd, globalBuf + totalBytesRead, size - totalBytesRead);
+        jbyte* globalBuf = env->GetByteArrayElements(buffer, nullptr);
+        int totalBytesRead = 0;
+        int bytesRead = 0;
 
-        if (bytesRead > 0) {
-            totalBytesRead += bytesRead;
-        } else if (bytesRead == 0) {
-            // No data available; potentially end of file or no data yet
-            __android_log_print(ANDROID_LOG_ERROR, "UART", "No data available; potentially end of file or no data yet");
-            usleep(100); // Sleep for a short while to avoid busy-waiting
-        } else if (bytesRead == -1 && errno == EAGAIN) {
-            // Non-blocking mode, no data available right now
-            __android_log_print(ANDROID_LOG_ERROR, "UART", "No data available; (bytesRead == -1 && errno == EAGAIN");
-            usleep(100);
-            continue;
-        } else {
-            // An error occurred
-            __android_log_print(ANDROID_LOG_ERROR, "UART", "Read error on An error occurred");
-            env->ReleaseByteArrayElements(buffer, globalBuf, 0);
-            return -errno;
+        while (totalBytesRead < size) {
+
+            //sleepInMicroseconds(140000);  // Sleep for 10000 microseconds (10 millisecond)
+
+            bytesRead = read(fd1, globalBuf + totalBytesRead, size - totalBytesRead);
+
+            if (bytesRead > 0) {
+                totalBytesRead += bytesRead;
+            } else if (bytesRead == 0) {
+                // No data available; potentially end of file or no data yet
+                __android_log_print(ANDROID_LOG_ERROR, "UART", "No data available; potentially end of file or no data yet");
+                usleep(100); // Sleep for a short while to avoid busy-waiting
+            } else if (bytesRead == -1 && errno == EAGAIN) {
+                // Non-blocking mode, no data available right now
+                __android_log_print(ANDROID_LOG_ERROR, "UART", "No data available; (bytesRead == -1 && errno == EAGAIN");
+                //usleep(100);
+                continue;
+            } else {
+                // An error occurred
+                __android_log_print(ANDROID_LOG_ERROR, "UART", "Read error on An error occurred");
+                env->ReleaseByteArrayElements(buffer, globalBuf, 0);
+                return -errno;
+            }
+
         }
 
-    }
+        env->ReleaseByteArrayElements(buffer, globalBuf, 0);
 
-    env->ReleaseByteArrayElements(buffer, globalBuf, 0);
-    return totalBytesRead;
+        return totalBytesRead;
+
+    return 0;
 }
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManagerCAN1_can1WriteUART(JNIEnv* env, jobject obj, jint fd2, jbyteArray data) {
-    std::lock_guard<std::mutex> lock(uartMutex);
 
     jbyte* bytes = env->GetByteArrayElements(data, nullptr);
     jsize length = env->GetArrayLength(data);
@@ -179,9 +212,8 @@ Java_com_example_uart_1app_UartManagerCAN1_can1WriteUART(JNIEnv* env, jobject ob
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_example_uart_1app_UartManagerCAN1_can1CloseUART(JNIEnv *env, jobject thiz, jint fd1) {
-    std::lock_guard<std::mutex> lock(uartMutex);
+    std::lock_guard<std::mutex> lock(can1UartMutex);
 
-    isReading = false;
     int result = close(fd1);
 
     if (result < 0) {
